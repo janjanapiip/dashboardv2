@@ -1,0 +1,315 @@
+/* ============================================================
+   Design tokens (BootstrapDash-inspired refresh)
+   ============================================================ */
+:root {
+  --spp-primary:        #0b3d91;
+  --spp-primary-dark:   #062866;
+  --spp-primary-light:  #1e4fb6;
+  --spp-accent:         #00bcd4;
+  --spp-accent-2:       #5b6cff;
+  --spp-success:        #00c9a7;
+  --spp-warning:        #ffb547;
+  --spp-danger:         #fa5c7c;
+  --spp-text:           #2a3045;
+  --spp-text-muted:     #6c7787;
+  --spp-bg:             #f5f7fb;
+  --spp-card-bg:        #ffffff;
+  --spp-border:         #e7ecf3;
+  --spp-shadow-sm:      0 1px 2px rgba(15, 32, 76, 0.05);
+  --spp-shadow:         0 2px 8px rgba(15, 32, 76, 0.06), 0 1px 2px rgba(15, 32, 76, 0.04);
+  --spp-shadow-lg:      0 8px 24px rgba(15, 32, 76, 0.10);
+  --spp-radius:         14px;
+  --spp-radius-sm:      8px;
+}
+
+/* ============================================================
+   Typography (DM Sans + JetBrains Mono for tabular digits)
+   ============================================================ */
+body {
+  background: var(--spp-bg);
+  background-image:
+    radial-gradient(ellipse at top left, rgba(91, 108, 255, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(0, 188, 212, 0.06) 0%, transparent 50%);
+  background-attachment: fixed;
+  color: var(--spp-text);
+  font-family: 'DM Sans', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+main { max-width: 1600px; margin: 0 auto; }
+
+h1, h2, h3, h4, h5, h6, .card-title {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #1a2138;
+}
+/* Navbar brand sits on dark gradient -> needs white, not the dark heading colour */
+.navbar-brand {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.18);
+}
+.navbar-brand:hover, .navbar-brand:focus { color: #ffffff !important; opacity: 0.95; }
+.kpi-value, .stat-value, table .fw-bold {
+  font-variant-numeric: tabular-nums;
+}
+code, kbd {
+  font-family: 'JetBrains Mono', ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.85em;
+}
+
+/* ============================================================
+   Navbar + brand
+   ============================================================ */
+.navbar {
+  background: linear-gradient(135deg, var(--spp-primary-dark) 0%, var(--spp-primary) 50%, var(--spp-primary-light) 100%) !important;
+  box-shadow: 0 2px 10px rgba(11, 61, 145, 0.18);
+  padding-top: 0.55rem; padding-bottom: 0.55rem;
+}
+.navbar-brand { font-size: 1.05rem; letter-spacing: -0.005em; }
+.navbar-nav .nav-link {
+  font-weight: 500; opacity: 0.92; transition: opacity 0.15s;
+}
+.navbar-nav .nav-link:hover { opacity: 1; }
+.navbar-logo {
+  height: 40px; width: auto; display: block;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+}
+
+/* ============================================================
+   Cards — softer, larger radius, subtle hover
+   ============================================================ */
+.card {
+  background: var(--spp-card-bg);
+  border: 1px solid var(--spp-border);
+  border-radius: var(--spp-radius);
+  box-shadow: var(--spp-shadow);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.card:hover { box-shadow: var(--spp-shadow-lg); }
+.card-body { padding: 1.1rem 1.25rem; }
+.card-title { font-size: 0.92rem; letter-spacing: -0.005em; margin-bottom: 0.6rem; }
+
+/* ============================================================
+   KPI cards — gradient strip at top, cycling accent colors
+   ============================================================ */
+.kpi { position: relative; overflow: hidden; }
+.kpi .card-body { padding: 1.15rem 1.25rem 1.1rem; }
+.kpi::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--spp-primary) 0%, var(--spp-accent-2) 100%);
+}
+.row > .col-md-3:nth-child(2) .kpi::before { background: linear-gradient(90deg, var(--spp-accent-2), var(--spp-accent)); }
+.row > .col-md-3:nth-child(3) .kpi::before { background: linear-gradient(90deg, var(--spp-accent), var(--spp-success)); }
+.row > .col-md-3:nth-child(4) .kpi::before { background: linear-gradient(90deg, var(--spp-success), var(--spp-warning)); }
+
+.kpi .kpi-label {
+  color: var(--spp-text-muted);
+  font-size: 0.78rem; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.kpi .kpi-value {
+  font-size: 1.95rem; font-weight: 700; line-height: 1.1;
+  color: var(--spp-primary);
+  letter-spacing: -0.02em; margin-top: 0.2rem;
+}
+
+/* Wrapper supaya chart-chart canvas punya tinggi konsisten */
+.chart-wrap    { position: relative; height: 280px; }
+.chart-wrap-lg { height: 360px; }
+.chart-wrap-sm { height: 220px; }
+
+.cell-active { background: #e6f4ea; }
+.cell-empty  { color: #c2c7d4; }
+
+table.small thead th {
+  font-size: 0.75rem;
+  background: linear-gradient(180deg, #f8fafd 0%, #eef2f8 100%);
+  border-color: var(--spp-border) !important;
+  font-weight: 600;
+  color: #455066;
+}
+table.small td, table.small th { padding: 0.3rem 0.4rem; border-color: var(--spp-border) !important; }
+table.small tbody tr:hover { background: #fafbfd; }
+
+.cell-input {
+  width: 40px; border: none; padding: 2px 4px; font-size: 0.78rem; text-align: right;
+  background: transparent; border-radius: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.cell-input:focus {
+  background: #fff7d6; outline: 1px solid var(--spp-warning);
+  outline-offset: -1px;
+}
+.cell-saved { background: #d6f3df !important; transition: background 0.7s; }
+.cell-error { background: #ffd9d9 !important; }
+.ket-input { font-size: 0.78rem; }
+.form-control:focus, .form-select:focus {
+  border-color: var(--spp-primary-light);
+  box-shadow: 0 0 0 0.2rem rgba(91, 108, 255, 0.15);
+}
+
+footer { background: transparent; color: var(--spp-text-muted); }
+
+/* ---------- Buttons ---------- */
+.btn { font-weight: 500; border-radius: var(--spp-radius-sm); transition: transform 0.12s, box-shadow 0.12s; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--spp-primary) 0%, var(--spp-primary-light) 100%);
+  border: none;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--spp-primary-dark) 0%, var(--spp-primary) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 61, 145, 0.25);
+}
+.btn-warning { color: #6b4500; }
+.btn-outline-success:hover, .btn-outline-secondary:hover, .btn-outline-warning:hover {
+  transform: translateY(-1px);
+}
+
+/* ---------- Clock bar (snapshot/live mode) ---------- */
+.clock-bar {
+  background: linear-gradient(90deg, #051c4d 0%, #0b3d91 60%, #1e4fb6 100%);
+  font-size: 0.92rem;
+  letter-spacing: 0.2px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  font-feature-settings: "tnum";
+}
+.clock-bar .clock-date { font-weight: 500; }
+.clock-bar .clock-time { font-weight: 600; }
+.clock-bar .clock-sep, .clock-bar .clock-tz { opacity: 0.7; }
+.clock-bar .clock-icon { font-size: 1rem; }
+.clock-bar .badge { font-weight: 500; letter-spacing: 0.02em; padding: 0.4em 0.7em; }
+
+/* ---------- Holiday / weekend coloring ----------
+   Hari libur nasional / cuti bersama  -> merah
+   Akhir pekan (Sabtu/Minggu)          -> biru muda (beda dari merah, tapi
+                                           tetap menandai non-hari-kerja) */
+th.day-holiday   { color: #c0392b; background: #ffe6e6 !important; border-bottom: 2px solid #e74c3c; }
+th.day-weekend   { color: #1f5fbf; background: #dfeafc !important; border-bottom: 2px solid #4a90e2; }
+td.day-holiday-bg { background: #fff1f1; }
+td.day-weekend-bg { background: #ecf3fc; }
+/* Active (ada DRS) di atas warna hari libur / akhir pekan */
+td.day-holiday-bg.cell-active { background: #fad7b5; }
+td.day-weekend-bg.cell-active { background: #c7dff0; }
+
+/* ---------- Activity cell + photo dot ---------- */
+td.activity-cell { position: relative; }
+.photo-dot {
+  position: absolute; top: 1px; right: 2px;
+  font-size: 0.6rem; opacity: 0.75;
+}
+td.has-photo { cursor: zoom-in; box-shadow: inset 0 -2px 0 #f39c12; }
+
+/* ---------- Floating photo preview ---------- */
+.photo-tip {
+  position: absolute; z-index: 1080; display: none;
+  background: #fff; border: 1px solid #d6dbe4; border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+  padding: 6px; max-width: 360px;
+}
+.photo-tip-head {
+  font-size: 0.72rem; color: #6c7787; margin-bottom: 4px;
+  padding: 0 2px;
+}
+.photo-tip-item {
+  display: inline-block; margin: 2px; vertical-align: top; max-width: 160px;
+}
+.photo-tip-item img {
+  max-height: 110px; max-width: 160px;
+  border-radius: 4px; display: block;
+}
+.photo-tip-item figcaption {
+  font-size: 0.7rem; color: #444; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---------- Lab name tooltip cursor ---------- */
+.lab-name { border-bottom: 1px dotted #b7bdcb; cursor: help; }
+.legend-card {
+  background: linear-gradient(135deg, #fff9e6 0%, #fff3d1 100%);
+  border-color: #f1d99a;
+}
+
+/* ---------- Cell modal stat cards ---------- */
+.stat-card {
+  border: 1px solid var(--spp-border);
+  border-radius: var(--spp-radius-sm);
+  padding: 14px;
+  background: linear-gradient(180deg, #fafbfd 0%, #f3f6fb 100%);
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+.stat-card::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--spp-accent-2), var(--spp-accent));
+  opacity: 0.5;
+}
+.stat-label {
+  color: var(--spp-text-muted);
+  font-size: 0.74rem; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.stat-value {
+  font-size: 1.7rem; font-weight: 700;
+  color: var(--spp-primary); line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.stat-sub { font-size: 0.72rem; color: var(--spp-text-muted); margin-top: 2px; }
+
+/* ---------- Photo grid inside modal ---------- */
+.photo-grid {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+.photo-tile {
+  position: relative; display: block; border-radius: 6px; overflow: hidden;
+  border: 1px solid #d6dbe4; background: #f7f9fc; cursor: zoom-in;
+  text-decoration: none;
+}
+.photo-tile img {
+  width: 100%; height: 140px; object-fit: cover; display: block;
+  transition: transform 0.2s;
+}
+.photo-tile:hover img { transform: scale(1.05); }
+.photo-tile-cap {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.7));
+  color: #fff; font-size: 0.72rem; padding: 12px 6px 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---------- Fullscreen lightbox ---------- */
+.lightbox {
+  position: fixed; inset: 0; z-index: 1090; display: none;
+  background: rgba(0, 0, 0, 0.92); align-items: center; justify-content: center;
+  flex-direction: column; padding: 32px;
+}
+.lightbox.show { display: flex; }
+.lightbox img {
+  max-width: 100%; max-height: 86vh; border-radius: 4px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.6);
+}
+.lightbox-caption {
+  color: #fff; margin-top: 12px; font-size: 0.85rem; opacity: 0.85;
+  text-align: center; max-width: 80%;
+}
+.lightbox-close, .lightbox-prev, .lightbox-next {
+  position: absolute; background: rgba(255,255,255,0.1); border: none;
+  color: #fff; font-size: 1.6rem; width: 44px; height: 44px;
+  border-radius: 50%; cursor: pointer; transition: background 0.2s;
+}
+.lightbox-close:hover, .lightbox-prev:hover, .lightbox-next:hover {
+  background: rgba(255,255,255,0.25);
+}
+.lightbox-close { top: 16px; right: 16px; }
+.lightbox-prev  { top: 50%; left: 16px;  transform: translateY(-50%); }
+.lightbox-next  { top: 50%; right: 16px; transform: translateY(-50%); }
+
+/* ---------- Clickable cells ---------- */
+td.activity-cell[role="button"] { cursor: zoom-in; }
+td.activity-cell[role="button"]:hover { outline: 2px solid #f1c40f; outline-offset: -2px; }

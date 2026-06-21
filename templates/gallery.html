@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Galeri Foto Kegiatan{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <h4 class="mb-0">Galeri Foto Kegiatan</h4>
+  <span class="badge bg-secondary ms-2">{{ photos|length }}</span>
+  <div class="ms-auto small text-muted">
+    Diurutkan dari tanggal kegiatan terbaru.
+  </div>
+</div>
+
+{% if not photos %}
+  <p class="text-muted">Belum ada foto. {% if current_user.is_authenticated %}
+    Unggah dari menu <a href="{{ url_for('admin') }}#tab-photo">Admin &raquo; Foto Kegiatan</a>.{% endif %}</p>
+{% else %}
+  <div class="row g-3">
+    {% for p in photos %}
+    <div class="col-sm-6 col-md-4 col-lg-3">
+      <div class="card h-100 shadow-sm">
+        <a href="{{ url_for('serve_photo', filename=p.filename) }}" target="_blank">
+          <img src="{{ url_for('serve_photo', filename=p.filename) }}" class="card-img-top"
+               style="height:180px; object-fit:cover" alt="">
+        </a>
+        <div class="card-body p-2">
+          <div class="small fw-bold">{{ p.event_date }}</div>
+          {% if p.lab_code %}<div class="small text-primary">{{ p.lab_code }}</div>{% endif %}
+          {% if p.caption %}<div class="small">{{ p.caption }}</div>{% endif %}
+        </div>
+        {% if current_user.is_authenticated %}
+        <div class="card-footer p-1 bg-white border-0">
+          <form method="post" action="{{ url_for('admin_delete_photo', pid=p.id) }}"
+                onsubmit="return confirm('Hapus foto ini?')">
+            <button class="btn btn-sm btn-outline-danger w-100">Hapus</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

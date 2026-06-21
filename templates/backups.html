@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Backup Database{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+  <h4 class="mb-0 me-3">Backup Database</h4>
+  <form method="post" action="{{ url_for('admin_backup_now') }}" class="ms-auto">
+    <button class="btn btn-primary btn-sm">Backup Sekarang</button>
+  </form>
+  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin') }}">&laquo; Kembali ke Admin</a>
+</div>
+
+<div class="alert alert-info py-2 small">
+  Setiap operasi destruktif (import dengan mode timpa, hapus periode) otomatis membuat
+  snapshot database di <code>data/backups/</code>. Maksimum 30 snapshot disimpan; yang lama
+  akan terhapus otomatis. Untuk memulihkan data, gunakan tombol <b>Pulihkan</b> pada baris
+  snapshot yang diinginkan dan ketik <code>PULIHKAN</code> untuk konfirmasi.
+</div>
+
+{% if not backups %}
+  <p class="text-muted">Belum ada snapshot. Klik <i>Backup Sekarang</i> untuk membuat snapshot pertama.</p>
+{% else %}
+<div class="card"><div class="card-body p-2">
+  <table class="table table-sm align-middle mb-0 small">
+    <thead class="table-light">
+      <tr>
+        <th>Tanggal &amp; Waktu</th>
+        <th>Nama Berkas</th>
+        <th class="text-end">Ukuran (KB)</th>
+        <th style="width:260px">Pulihkan</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in backups %}
+      <tr>
+        <td>{{ b.created }}</td>
+        <td><code>{{ b.name }}</code></td>
+        <td class="text-end">{{ b.size_kb }}</td>
+        <td>
+          <form method="post" action="{{ url_for('admin_backup_restore') }}" class="d-flex gap-1"
+                onsubmit="return confirm('Pulihkan database ke snapshot ini? Database saat ini akan disnapshot dulu sebelum diganti.');">
+            <input type="hidden" name="name" value="{{ b.name }}">
+            <input class="form-control form-control-sm" type="text" name="confirm_phrase"
+                   placeholder='Ketik PULIHKAN' required>
+            <button class="btn btn-outline-warning btn-sm">Pulihkan</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+{% endblock %}

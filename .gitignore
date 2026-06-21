@@ -1,0 +1,45 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# ---------- Virtual environment ----------
+.venv/
+venv/
+env/
+
+# ---------- Local data (must NEVER be committed) ----------
+# Ignore everything under data/ except the directory placeholders.
+data/*
+!data/uploads/
+!data/backups/
+data/uploads/*
+!data/uploads/.gitkeep
+!data/uploads/photos/
+data/uploads/photos/*
+!data/uploads/photos/.gitkeep
+data/backups/*
+!data/backups/.gitkeep
+
+# ---------- Build output / deploy artifacts ----------
+dist/
+.vercel/
+
+# ---------- IDE / editor ----------
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# ---------- Secrets / env ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Misc ----------
+*.log
+_inspect.py

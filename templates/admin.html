@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Admin &mdash; Kelola Data{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+  <h4 class="mb-0 me-3">Kelola Data &mdash; {{ month_name }} {{ year }}</h4>
+  <form class="d-flex gap-2 ms-auto" method="get">
+    <select name="month" class="form-select form-select-sm">
+      {% for m, n in months.items() %}
+        <option value="{{ m }}" {% if m==month %}selected{% endif %}>{{ n }}</option>
+      {% endfor %}
+    </select>
+    <input class="form-control form-control-sm" type="number" name="year" value="{{ year }}" min="2020" max="2099" style="width:110px">
+    <button class="btn btn-primary btn-sm">Buka Periode</button>
+  </form>
+</div>
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-data">Data Bulanan</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-import">Import Excel</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-photo">Foto Kegiatan</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-account">Akun</button></li>
+</ul>
+
+<div class="tab-content">
+
+<!-- ========== DATA TAB ========== -->
+<div class="tab-pane fade show active" id="tab-data">
+<div class="card"><div class="card-body">
+  <p class="text-muted small mb-2">
+    Klik sel untuk mengisi <b>FR</b> (Frekuensi), <b>JLH</b> (Jumlah Pengguna), <b>DRS</b> (Durasi jam).
+    Kolom JF/JP/DURASI dihitung otomatis. Tekan <kbd>Tab</kbd> untuk pindah sel.
+  </p>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle small mb-0" id="editTable">
+      <thead class="table-light text-center">
+        <tr>
+          <th rowspan="3" style="width:30px">No</th>
+          <th rowspan="3" style="min-width:240px">Nama Lab</th>
+          <th rowspan="3">JF</th>
+          <th rowspan="3">JP</th>
+          <th rowspan="3">Durasi (Jam)</th>
+          <th colspan="{{ days*3 }}">Tanggal Hari Kerja</th>
+          <th rowspan="3" style="min-width:160px">Keterangan</th>
+        </tr>
+        <tr>
+          {% for d in range(1, days+1) %}<th colspan="3">{{ d }}</th>{% endfor %}
+        </tr>
+        <tr>
+          {% for d in range(1, days+1) %}<th>FR</th><th>JLH</th><th>DRS</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for lab in labs %}
+        <tr data-lab-id="{{ lab.id }}">
+          <td class="text-center">{{ loop.index }}</td>
+          <td>{{ lab.name }}</td>
+          <td class="text-end fw-bold" data-total="fr">{{ lab.fr_total }}</td>
+          <td class="text-end fw-bold" data-total="jp">{{ lab.jp_total }}</td>
+          <td class="text-end fw-bold" data-total="drs">{{ '%.1f' % lab.drs_total }}</td>
+          {% for d in range(1, days+1) %}
+            {% set c = lab.days[d] %}
+            <td><input class="cell-input" data-day="{{ d }}" data-kind="fr"  type="number" min="0" step="1"   value="{{ c.fr or '' }}"></td>
+            <td><input class="cell-input" data-day="{{ d }}" data-kind="jlh" type="number" min="0" step="1"   value="{{ c.jlh or '' }}"></td>
+            <td><input class="cell-input" data-day="{{ d }}" data-kind="drs" type="number" min="0" step="0.5" value="{{ c.drs or '' }}"></td>
+          {% endfor %}
+          <td><input class="ket-input form-control form-control-sm" type="text" value="{{ lab.keterangan }}"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="small text-muted mt-2 mb-0">
+    <span class="text-success">&#10003;</span> = tersimpan otomatis (auto-save 600 ms setelah selesai mengetik).
+    Jika Anda mengosongkan sel yang sebelumnya berisi data, sistem akan meminta konfirmasi
+    terlebih dahulu &mdash; data lama tidak akan hilang secara tidak sengaja.
+  </p>
+</div></div>
+</div>
+
+<!-- ========== IMPORT TAB ========== -->
+<div class="tab-pane fade" id="tab-import">
+<div class="card"><div class="card-body">
+  <h6 class="card-title">Import dari Master Format Excel</h6>
+  <div class="alert alert-info py-2 small mb-2">
+    <b>Mode aman (default):</b> data yang sudah ada tidak akan diganti.
+    Hanya tanggal yang masih kosong yang akan diisi. Jika ingin menimpa data lama,
+    centang "Timpa data" <i>dan</i> ketik konfirmasi.
+    Snapshot database otomatis dibuat sebelum setiap import.
+  </div>
+  <p class="small text-muted mb-2">
+    Unggah file dengan format <i>Master Format Tabel Utilisasi.xlsx</i>. Sistem akan mendeteksi bulan/tahun
+    dari header dan memasukkan data 13 laboratorium otomatis.
+  </p>
+  <p class="small text-muted">
+    <b>Multi-sheet:</b> jika file berisi banyak worksheet (mis. <i>JANUARI</i>, <i>FEBRUARI</i>, &hellip;),
+    semua sheet yang punya header <code>BULAN : &lt;Bulan&gt; &lt;Tahun&gt;</code> akan diproses
+    sekaligus dari kiri ke kanan. Sheet yang bukan format Master akan dilewati otomatis.
+  </p>
+  <form method="post" action="{{ url_for('admin_import') }}" enctype="multipart/form-data" class="row g-2 align-items-end" id="importForm">
+    <div class="col-md-5">
+      <label class="form-label small">Berkas Excel</label>
+      <input type="file" name="file" accept=".xlsx,.xlsm" class="form-control" required>
+    </div>
+    <div class="col-md-3">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="overwrite" value="1" id="ow">
+        <label class="form-check-label" for="ow">Timpa data periode tersebut</label>
+      </div>
+      <input class="form-control form-control-sm mt-1 d-none" type="text" name="overwrite_confirm"
+             id="owConfirm" placeholder='Ketik OVERWRITE untuk konfirmasi'>
+    </div>
+    <div class="col-md-4">
+      <button class="btn btn-primary w-100" id="importBtn">Import Sekarang</button>
+    </div>
+  </form>
+  <hr>
+  <h6>Periode yang sudah ada:</h6>
+  {% if periods %}
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      {% for y, m in periods %}
+        <a class="badge text-bg-light border text-decoration-none p-2"
+           href="{{ url_for('admin', year=y, month=m) }}">
+           {{ months[m] }} {{ y }}
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted small mb-3">Belum ada data. Mulai dengan import Excel atau isi manual.</p>
+  {% endif %}
+
+  <hr>
+  <h6 class="text-danger">&#9888;&#65039; Hapus Periode</h6>
+  <p class="small text-muted">
+    Tindakan ini akan menghapus <b>seluruh data utilisasi dan keterangan</b> pada periode yang dipilih.
+    Snapshot database otomatis dibuat sebelum penghapusan agar bisa dipulihkan.
+    Untuk melanjutkan, ketik persis frasa konfirmasi:
+    <code>HAPUS {{ month_name|upper }} {{ year }}</code>
+  </p>
+  <form method="post" action="{{ url_for('admin_delete_period') }}" class="row g-2 align-items-end"
+        onsubmit="return confirm('Anda akan menghapus seluruh data {{ month_name }} {{ year }}. Lanjutkan?');">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="month" value="{{ month }}">
+    <div class="col-md-6">
+      <label class="form-label small">Ketik konfirmasi</label>
+      <input class="form-control" type="text" name="confirm_phrase" required
+             placeholder='HAPUS {{ month_name|upper }} {{ year }}'>
+    </div>
+    <div class="col-md-3">
+      <button class="btn btn-outline-danger w-100">Hapus {{ month_name }} {{ year }}</button>
+    </div>
+    <div class="col-md-3">
+      <a class="btn btn-outline-secondary w-100" href="{{ url_for('admin_backups') }}">Lihat Backup</a>
+    </div>
+  </form>
+  <hr>
+  <h6>Kalender Hari Libur</h6>
+  <p class="small text-muted">
+    Sinkronkan daftar hari libur nasional &amp; cuti bersama dari kalender publik Indonesia.
+    Data disimpan lokal supaya dashboard tetap menampilkan tanggal merah meski offline.
+    Bulan {{ month_name }} {{ year }} ini terdeteksi <b>{{ holiday_count }}</b> hari libur.
+  </p>
+  <form method="post" action="{{ url_for('admin_sync_holidays') }}" class="row g-2 align-items-center">
+    <div class="col-md-3">
+      <input class="form-control" type="number" name="year" value="{{ year }}" min="2020" max="2099">
+    </div>
+    <div class="col-md-3">
+      <button class="btn btn-outline-primary w-100">Sinkronkan Hari Libur</button>
+    </div>
+    <div class="col-md-6 small text-muted">
+      Sumber: <code>api-harilibur.vercel.app</code> (utama) atau <code>date.nager.at</code> (cadangan).
+    </div>
+  </form>
+</div></div>
+</div>
+
+<!-- ========== PHOTO TAB ========== -->
+<div class="tab-pane fade" id="tab-photo">
+<div class="card mb-3"><div class="card-body">
+  <h6 class="card-title">Unggah Foto Kegiatan</h6>
+  <p class="small text-muted mb-2">
+    Foto dengan laboratorium tertentu hanya dapat diunggah pada tanggal yang
+    sudah memiliki catatan aktivitas (FR / JLH / DRS &gt; 0). Untuk foto umum
+    tanpa lab spesifik, pilih opsi <i>Umum / tidak spesifik</i>.
+  </p>
+  <form id="photoForm" method="post" action="{{ url_for('admin_upload_photo') }}"
+        enctype="multipart/form-data" class="row g-2">
+    <div class="col-md-3">
+      <label class="form-label small">Tanggal Kegiatan <span class="text-danger">*</span></label>
+      <input class="form-control" type="date" name="event_date" id="photoDate" max="{{ today_iso }}" required>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small">Laboratorium</label>
+      <select class="form-select" name="lab_id" id="photoLab">
+        <option value="">— Umum / tidak spesifik —</option>
+        {% for lab in labs %}<option value="{{ lab.id }}">{{ lab.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small">Caption</label>
+      <input class="form-control" type="text" name="caption" maxlength="200">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small">Foto <span class="text-danger">*</span></label>
+      <input class="form-control" type="file" name="photo"
+             accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+             id="photoFile" required>
+      <div class="form-text small">Maks 2 MB. Format: PNG, JPG, JPEG, atau WebP.</div>
+    </div>
+    <div class="col-12">
+      <button class="btn btn-primary" id="photoSubmit">Unggah</button>
+      <span id="photoHint" class="small ms-2"></span>
+    </div>
+  </form>
+</div></div>
+
+<p><a class="btn btn-outline-secondary btn-sm" href="{{ url_for('gallery') }}">Lihat semua foto &raquo;</a></p>
+</div>
+
+<!-- ========== ACCOUNT TAB ========== -->
+<div class="tab-pane fade" id="tab-account">
+<div class="card"><div class="card-body" style="max-width:480px">
+  <h6 class="card-title">Ganti Password</h6>
+  <form method="post" action="{{ url_for('change_password') }}">
+    <div class="mb-2"><label class="form-label small">Password saat ini</label>
+      <input class="form-control" type="password" name="current" required></div>
+    <div class="mb-3"><label class="form-label small">Password baru</label>
+      <input class="form-control" type="password" name="new" minlength="4" required></div>
+    <button class="btn btn-primary">Simpan</button>
+  </form>
+</div></div>
+</div>
+
+</div>
+
+<script>
+const PERIOD = { year: {{ year }}, month: {{ month }} };
+</script>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

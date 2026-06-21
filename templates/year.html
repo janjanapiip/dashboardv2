@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Rekapitulasi Tahunan {{ year }}{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+  <h4 class="mb-0 me-3">Rekapitulasi Utilisasi &mdash; Setahun Penuh {{ year }}</h4>
+  {% if static_export %}
+    <div class="d-flex gap-2 ms-auto">
+      <select id="yearPicker" class="form-select form-select-sm" style="width:130px">
+        {% for y in years %}<option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+      <a class="btn btn-outline-secondary btn-sm" href="/{{ year }}-01.html">&laquo; Mode Bulanan</a>
+    </div>
+  {% else %}
+    <form class="d-flex gap-2 ms-auto" method="get">
+      <select name="year" class="form-select form-select-sm" style="width:110px">
+        {% set has_year = year in years %}
+        {% for y in years %}<option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        {% if not has_year %}<option value="{{ year }}" selected>{{ year }}</option>{% endif %}
+      </select>
+      <button class="btn btn-primary btn-sm">Lihat</button>
+      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('index', year=year, month=1) }}">
+        &laquo; Mode Bulanan
+      </a>
+    </form>
+  {% endif %}
+</div>
+
+{% include "_legend.html" %}
+
+{% set total_fr  = labs|sum(attribute='fr_total') %}
+{% set total_jp  = labs|sum(attribute='jp_total') %}
+{% set total_drs = labs|sum(attribute='drs_total') %}
+{% set active_lab_count = labs|selectattr('drs_total','gt',0)|list|length %}
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3"><div class="card kpi"><div class="card-body">
+    <div class="kpi-label">Total Frekuensi Tahun {{ year }}</div>
+    <div class="kpi-value">{{ '{:,}'.format(total_fr) }}</div>
+  </div></div></div>
+  <div class="col-md-3"><div class="card kpi"><div class="card-body">
+    <div class="kpi-label">Total Pengguna Tahun {{ year }}</div>
+    <div class="kpi-value">{{ '{:,}'.format(total_jp) }}</div>
+  </div></div></div>
+  <div class="col-md-3"><div class="card kpi"><div class="card-body">
+    <div class="kpi-label">Total Durasi (Jam)</div>
+    <div class="kpi-value">{{ '%.1f' % total_drs }}</div>
+  </div></div></div>
+  <div class="col-md-3"><div class="card kpi"><div class="card-body">
+    <div class="kpi-label">Lab Aktif</div>
+    <div class="kpi-value">{{ active_lab_count }} / {{ labs|length }}</div>
+  </div></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-7">
+    <div class="card"><div class="card-body">
+      <h6 class="card-title">Durasi (Jam) per Laboratorium &mdash; Total Tahun {{ year }}</h6>
+      <canvas id="yearByLab" height="170"></canvas>
+    </div></div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card"><div class="card-body">
+      <h6 class="card-title">Distribusi Pengguna (JP) Tahun {{ year }}</h6>
+      <canvas id="yearShare" height="200"></canvas>
+    </div></div>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body">
+  <h6 class="card-title">Durasi Bulanan (jam) &mdash; Stacked per Lab</h6>
+  <canvas id="yearMonthly" height="95"></canvas>
+</div></div>
+
+<div class="card mb-3"><div class="card-body">
+  <h6 class="card-title">Tren Durasi per Lab &mdash; Klik legenda untuk filter</h6>
+  <canvas id="yearTrend" height="95"></canvas>
+</div></div>
+
+<div class="card"><div class="card-body">
+  <h6 class="card-title">Rincian Bulanan (Durasi jam) per Lab</h6>
+  <p class="small text-muted mb-2">
+    Klik sel berwarna untuk membuka detail bulan tersebut.
+  </p>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle small mb-0" id="yearTable">
+      <thead class="table-light text-center">
+        <tr>
+          <th style="width:30px">No</th>
+          <th class="text-start" style="min-width:240px">Nama Lab</th>
+          {% for m in range(1, 13) %}<th>{{ months_short[m] }}</th>{% endfor %}
+          <th>Total</th>
+          <th>Bulan Aktif</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lab in labs %}
+        <tr>
+          <td class="text-center">{{ loop.index }}</td>
+          <td>
+            <span class="lab-name" data-code="{{ lab.code }}"
+                  title="{{ lab_descriptions.get(lab.code, '') }}">
+              {{ lab.name }}
+            </span>
+          </td>
+          {% for m in range(1, 13) %}
+            {% set cell = lab.months[m] %}
+            <td class="text-center {{ 'cell-active' if cell.drs else 'cell-empty' }}"
+                {% if cell.drs %}
+                  data-lab-id="{{ lab.id }}" data-month="{{ m }}" data-year="{{ year }}"
+                  role="button" tabindex="0"
+                  title="FR {{ cell.fr }} / JP {{ cell.jlh }} / DRS {{ '%.1f' % cell.drs }} jam{% if cell.photos %} &mdash; {{ cell.photos }} foto{% endif %}"
+                {% endif %}>
+              {{ '%.0f' % cell.drs if cell.drs else '' }}
+              {% if cell.photos %}<span class="photo-dot">&#128247;</span>{% endif %}
+            </td>
+          {% endfor %}
+          <td class="text-end fw-bold">{{ '%.1f' % lab.drs_total }}</td>
+          <td class="text-center">{{ lab.active_months }} / 12</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const YEAR_SUMMARY = {{ {'labs': labs, 'year': year, 'months': months, 'monthsShort': months_short} | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/year.js') }}"></script>
+{% endblock %}

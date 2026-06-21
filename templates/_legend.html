@@ -1,0 +1,41 @@
+<div class="card mb-3 legend-card">
+  <div class="card-body py-2">
+    <button class="btn btn-sm btn-link p-0 text-decoration-none" type="button"
+            data-bs-toggle="collapse" data-bs-target="#legendPanel"
+            aria-expanded="false">
+      &#9432; Keterangan singkatan &amp; daftar laboratorium
+      <span class="small text-muted">(klik untuk buka/tutup)</span>
+    </button>
+    <div class="collapse mt-2" id="legendPanel">
+      <div class="row g-3">
+        <div class="col-md-5">
+          <div class="small fw-bold mb-1">Singkatan kolom</div>
+          <table class="table table-sm small mb-0">
+            <tbody>
+              {% for code, name, desc in abbrev_help %}
+              <tr>
+                <td class="fw-bold text-primary" style="width:55px">{{ code }}</td>
+                <td style="width:160px">{{ name }}</td>
+                <td class="text-muted">{{ desc }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="col-md-7">
+          <div class="small fw-bold mb-1">Daftar laboratorium &amp; simulator</div>
+          <table class="table table-sm small mb-0">
+            <tbody>
+              {% for code, desc in lab_descriptions.items() %}
+              <tr>
+                <td class="fw-bold text-primary" style="width:60px">{{ code }}</td>
+                <td class="text-muted">{{ desc }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
