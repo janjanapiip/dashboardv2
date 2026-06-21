@@ -1,0 +1,73 @@
+name: CI — sanity checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  sanity:
+    name: Validate source builds against an empty database
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install --quiet -r requirements.txt
+
+      - name: Validate Python syntax
+        run: python -m compileall -q app.py db.py excel_import.py holidays.py labs.py backup.py tools/
+
+      - name: Initialize empty DB
+        run: |
+          python -c "
+          import os
+          os.environ['SPP_ADMIN_USER'] = 'ci'
+          os.environ['SPP_ADMIN_PW']   = 'ci-temp'
+          from db import init_db
+          init_db()
+          print('Schema OK.')
+          "
+
+      - name: Render static export from empty DB
+        run: |
+          python tools/static_export.py --quiet
+          test -f dist/index.html        || (echo 'Missing dist/index.html'; exit 1)
+          test -f dist/gallery.html      || (echo 'Missing dist/gallery.html'; exit 1)
+          test -f dist/vercel.json       || (echo 'Missing dist/vercel.json'; exit 1)
+          test -d dist/static/css        || (echo 'Missing dist/static/css'; exit 1)
+          echo "OK: $(ls dist | wc -l) entries in dist/"
+
+      - name: Verify content-hash cache-busting is wired
+        run: |
+          if ! grep -qE 'style\.css\?v=[a-f0-9]{8}' dist/index.html; then
+            echo "ERROR: cache-bust hash missing from dist/index.html"
+            exit 1
+          fi
+          echo "OK: cache-bust hashes present"
+
+      - name: Smoke-test rendered HTML
+        run: |
+          # Look for known UI strings that should appear in the empty-DB render
+          grep -q "Rekapitulasi Utilisasi"  dist/index.html  || (echo 'Missing title'; exit 1)
+          grep -q "Galeri Foto"              dist/gallery.html || (echo 'Missing gallery'; exit 1)
+          grep -q "DM+Sans"                  dist/index.html  || (echo 'Font not loaded'; exit 1)
+          echo "OK: rendered HTML contains expected markers"
+
+      - name: Upload built artifact (debug aid)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-failed-${{ github.run_id }}
+          path: dist/
+          retention-days: 3
