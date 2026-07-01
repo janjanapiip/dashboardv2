@@ -100,7 +100,13 @@
   <form method="post" action="{{ url_for('admin_import') }}" enctype="multipart/form-data" class="row g-2 align-items-end" id="importForm">
     <div class="col-md-5">
       <label class="form-label small">Berkas Excel</label>
-      <input type="file" name="file" accept=".xlsx,.xlsm" class="form-control" required>
+      <div class="dropzone" id="importDropzone">
+        <input type="file" name="file" accept=".xlsx,.xlsm" class="form-control" id="importFile" required>
+        <div class="dropzone-hint small text-muted mt-1">
+          Tarik &amp; lepas file <code>.xlsx</code> / <code>.xlsm</code> di sini, atau klik untuk memilih.
+        </div>
+      </div>
+      <div class="small mt-1" id="importHint"></div>
     </div>
     <div class="col-md-3">
       <div class="form-check">
@@ -202,10 +208,15 @@
     </div>
     <div class="col-md-2">
       <label class="form-label small">Foto <span class="text-danger">*</span></label>
-      <input class="form-control" type="file" name="photo"
-             accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
-             id="photoFile" required>
-      <div class="form-text small">Maks 2 MB. Format: PNG, JPG, JPEG, atau WebP.</div>
+      <div class="dropzone" id="photoDropzone">
+        <input class="form-control" type="file" name="photo"
+               accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+               id="photoFile" required>
+        <div class="dropzone-hint small text-muted mt-1">
+          Tarik &amp; lepas foto di sini, atau klik untuk memilih.
+          Maks 2 MB. PNG, JPG, JPEG, atau WebP.
+        </div>
+      </div>
     </div>
     <div class="col-12">
       <button class="btn btn-primary" id="photoSubmit">Unggah</button>
@@ -236,5 +247,6 @@
 <script>
 const PERIOD = { year: {{ year }}, month: {{ month }} };
 </script>
+<script src="{{ url_for('static', filename='js/dropzone.js') }}"></script>
 <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 {% endblock %}

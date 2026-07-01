@@ -27,9 +27,17 @@
           {% if p.caption %}<div class="small">{{ p.caption }}</div>{% endif %}
         </div>
         {% if current_user.is_authenticated %}
-        <div class="card-footer p-1 bg-white border-0">
+        <div class="card-footer p-1 bg-white border-0 d-flex gap-1">
+          <button type="button" class="btn btn-sm btn-outline-primary flex-fill js-edit-photo"
+                  data-id="{{ p.id }}"
+                  data-filename="{{ p.filename }}"
+                  data-event-date="{{ p.event_date }}"
+                  data-lab-id="{{ p.lab_id or '' }}"
+                  data-caption="{{ p.caption or '' }}">
+            Edit
+          </button>
           <form method="post" action="{{ url_for('admin_delete_photo', pid=p.id) }}"
-                onsubmit="return confirm('Hapus foto ini?')">
+                onsubmit="return confirm('Hapus foto ini?')" class="flex-fill m-0">
             <button class="btn btn-sm btn-outline-danger w-100">Hapus</button>
           </form>
         </div>
@@ -38,5 +46,67 @@
     </div>
     {% endfor %}
   </div>
+{% endif %}
+
+{% if current_user.is_authenticated %}
+<!-- Edit modal (shared, populated by gallery-admin.js) -->
+<div class="modal fade" id="editPhotoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form id="editPhotoForm" method="post" enctype="multipart/form-data" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Foto Kegiatan</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-5 text-center">
+            <img id="editPhotoPreview" src="" alt="" class="img-fluid rounded border" style="max-height:260px">
+            <div class="small text-muted mt-1" id="editPhotoFilename"></div>
+          </div>
+          <div class="col-md-7">
+            <div class="mb-2">
+              <label class="form-label small">Tanggal Kegiatan <span class="text-danger">*</span></label>
+              <input class="form-control" type="date" name="event_date" id="editPhotoDate" max="{{ today_iso }}" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Laboratorium</label>
+              <select class="form-select" name="lab_id" id="editPhotoLab">
+                <option value="">— Umum / tidak spesifik —</option>
+                {% for lab in labs %}<option value="{{ lab.id }}">{{ lab.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Caption</label>
+              <input class="form-control" type="text" name="caption" id="editPhotoCaption" maxlength="200">
+            </div>
+            <div class="mb-1">
+              <label class="form-label small">Ganti Foto (opsional)</label>
+              <div class="dropzone" id="editPhotoDropzone">
+                <input class="form-control" type="file" name="photo" id="editPhotoFile"
+                       accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp">
+                <div class="dropzone-hint small text-muted mt-1">
+                  Tarik &amp; lepas foto baru di sini, atau klik tombol untuk memilih.
+                  Maks 2 MB. PNG, JPG, JPEG, atau WebP.
+                </div>
+              </div>
+              <div class="small mt-1" id="editPhotoHint"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="submit" class="btn btn-primary" id="editPhotoSubmit">Simpan Perubahan</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if current_user.is_authenticated %}
+<script src="{{ url_for('static', filename='js/dropzone.js') }}"></script>
+<script src="{{ url_for('static', filename='js/gallery-admin.js') }}"></script>
 {% endif %}
 {% endblock %}

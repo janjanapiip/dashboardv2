@@ -20,7 +20,15 @@ import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 
 from db import init_db, get_conn, DATA_DIR, DB_PATH
-from labs import LABS, MONTHS_ID, MONTHS_SHORT_ID, LAB_DESCRIPTIONS, ABBREV_HELP
+from labs import (
+    LABS,
+    MONTHS_ID,
+    MONTHS_SHORT_ID,
+    LAB_DESCRIPTIONS,
+    ABBREV_HELP,
+    RETIRED_LABS,
+    retired_in_period,
+)
 from excel_import import parse_master_format, parse_all_sheets
 import holidays as holidays_mod
 import backup as backup_mod
@@ -144,6 +152,8 @@ def inject_clock_context():
         "months_short": MONTHS_SHORT_ID,
         "has_logo": LOGO_PATH.exists(),
         "static_export": STATIC_EXPORT,
+        "retired_lab_codes": set(RETIRED_LABS.keys()),
+        "retired_lab_meta": RETIRED_LABS,
     }
 
 
@@ -154,8 +164,54 @@ def all_labs():
         return [dict(r) for r in conn.execute("SELECT * FROM lab ORDER BY id").fetchall()]
 
 
+def _filter_retired(labs_list, year, month):
+    """Drop labs whose code is in RETIRED_LABS with retirement <= (year, month)."""
+    out = []
+    for lab in labs_list:
+        code = lab.get("code") if isinstance(lab, dict) else None
+        retired = RETIRED_LABS.get(code) if code else None
+        if retired and (year, month) >= retired:
+            continue
+        out.append(lab)
+    return out
+
+
+def _filter_retired_year(labs_list, year):
+    """For year view: zero out month cells for retired periods so totals don't lie."""
+    out = []
+    for lab in labs_list:
+        code = lab.get("code") if isinstance(lab, dict) else None
+        retired = RETIRED_LABS.get(code) if code else None
+        if not retired:
+            out.append(lab)
+            continue
+        ry, rm = retired
+        if year < ry:
+            out.append(lab)
+            continue
+        if year > ry:
+            # Fully retired this whole year — drop.
+            continue
+        # Partial year: keep, but zero retired months.
+        for m in range(rm, 13):
+            cell = lab["months"].get(m)
+            if cell:
+                cell["fr"] = 0
+                cell["jlh"] = 0
+                cell["drs"] = 0.0
+                cell["photos"] = 0
+                cell["retired"] = True
+        lab["fr_total"] = sum(v["fr"] for v in lab["months"].values())
+        lab["jp_total"] = sum(v["jlh"] for v in lab["months"].values())
+        lab["drs_total"] = sum(v["drs"] for v in lab["months"].values())
+        lab["active_months"] = sum(1 for v in lab["months"].values() if v["drs"] > 0)
+        lab["retired_from"] = (ry, rm)
+        out.append(lab)
+    return out
+
+
 def period_summary(year, month):
-    """Return per-lab totals + per-day series + day metadata + photos map."""
+    """Return per-lab totals + per-day series + day metadata + photos map + details map."""
     days = monthrange(year, month)[1]
     labs = all_labs()
     with get_conn() as conn:
@@ -171,6 +227,11 @@ def period_summary(year, month):
             "SELECT id, filename, event_date, lab_id, caption FROM photo "
             "WHERE event_date LIKE ? ORDER BY id",
             (f"{year}-{month:02d}-%",),
+        ).fetchall()
+        detail_rows = conn.execute(
+            "SELECT lab_id, day, users, activity FROM detail "
+            "WHERE year=? AND month=? ORDER BY lab_id, day, id",
+            (year, month),
         ).fetchall()
 
     by_lab = {lab["id"]: {
@@ -217,7 +278,14 @@ def period_summary(year, month):
             "id": p["id"], "filename": p["filename"], "caption": p["caption"] or "",
         })
 
-    return list(by_lab.values()), days, day_meta, photos_map
+    details_map: dict[int, dict[int, list[dict]]] = {}
+    for dr in detail_rows:
+        details_map.setdefault(dr["lab_id"], {}).setdefault(dr["day"], []).append({
+            "users": dr["users"] or "",
+            "activity": dr["activity"] or "",
+        })
+
+    return list(by_lab.values()), days, day_meta, photos_map, details_map
 
 
 def available_periods():
@@ -366,13 +434,16 @@ def index():
         month = int(request.args.get("month", month))
     except ValueError:
         pass
-    summary, days, day_meta, photos_map = period_summary(year, month)
+    summary, days, day_meta, photos_map, details_map = period_summary(year, month)
+    summary = _filter_retired(summary, year, month)
+    retired = retired_in_period(year, month)
     return render_template(
         "index.html",
         labs=summary, days=days, year=year, month=month,
-        day_meta=day_meta, photos_map=photos_map,
+        day_meta=day_meta, photos_map=photos_map, details_map=details_map,
         month_name=MONTHS_ID.get(month, ""),
         periods=periods, months=MONTHS_ID,
+        retired_labs=retired,
     )
 
 
@@ -407,11 +478,14 @@ def api_activity_check():
 def api_period():
     year = int(request.args["year"])
     month = int(request.args["month"])
-    summary, days, day_meta, photos_map = period_summary(year, month)
+    summary, days, day_meta, photos_map, details_map = period_summary(year, month)
+    summary = _filter_retired(summary, year, month)
     return jsonify({
         "year": year, "month": month, "days": days,
         "day_meta": day_meta,
         "photos": photos_map,
+        "details": details_map,
+        "retired_labs": [{"code": c, "name": n} for c, n in retired_in_period(year, month)],
         "labs": [{
             "id": l["id"], "code": l["code"], "name": l["name"],
             "fr_total": l["fr_total"], "jp_total": l["jp_total"], "drs_total": l["drs_total"],
@@ -429,11 +503,14 @@ def year_view():
     except ValueError:
         year = years[0]
     summary = year_summary(year)
+    summary = _filter_retired_year(summary, year)
     return render_template(
         "year.html",
         labs=summary, year=year,
         months=MONTHS_ID, months_short=MONTHS_SHORT_ID,
         years=years,
+        retired_labs=[{"code": c, "name": n, "from_month": RETIRED_LABS[c][1], "from_year": RETIRED_LABS[c][0]}
+                      for c, n in retired_in_period(year, 12) if RETIRED_LABS[c][0] <= year],
     )
 
 
@@ -451,6 +528,11 @@ def gallery():
 @app.route("/uploads/photos/<path:filename>")
 def serve_photo(filename):
     return send_from_directory(UPLOAD_DIR, filename)
+
+
+@app.route("/profile")
+def profile_spp():
+    return render_template("profile.html")
 
 
 # ---------------- auth ----------------
@@ -507,7 +589,8 @@ def admin():
         month = int(request.args.get("month", today.month))
     except ValueError:
         year, month = today.year, today.month
-    summary, days, day_meta, _ = period_summary(year, month)
+    summary, days, day_meta, _, _ = period_summary(year, month)
+    summary = _filter_retired(summary, year, month)
     holiday_count = sum(1 for d in day_meta.values() if d["holiday"])
     return render_template(
         "admin.html",
@@ -515,6 +598,7 @@ def admin():
         day_meta=day_meta, holiday_count=holiday_count,
         month_name=MONTHS_ID.get(month, ""), months=MONTHS_ID,
         periods=available_periods(),
+        retired_labs=retired_in_period(year, month),
     )
 
 
@@ -710,9 +794,29 @@ def admin_import():
         for parsed in parseable:
             year, month = parsed["year"], parsed["month"]
             inserted = updated = skipped = 0
+            details_added = 0
             if overwrite:
                 conn.execute("DELETE FROM entry WHERE year=? AND month=?", (year, month))
                 conn.execute("DELETE FROM keterangan WHERE year=? AND month=?", (year, month))
+
+            # Details are sourced exclusively from the Excel KETERANGAN column,
+            # so each re-import is idempotent: wipe the labs this sheet touches,
+            # then re-insert. This intentionally bypasses safe/overwrite mode —
+            # the master file is the source of truth for detail rows.
+            touched_labs = {d["lab_id"] for d in parsed.get("details", [])}
+            touched_labs.update(parsed["keterangan"].keys())
+            for lab_id in touched_labs:
+                conn.execute(
+                    "DELETE FROM detail WHERE lab_id=? AND year=? AND month=?",
+                    (lab_id, year, month),
+                )
+            for d in parsed.get("details", []):
+                conn.execute(
+                    "INSERT INTO detail (lab_id, year, month, day, users, activity) "
+                    "VALUES (?,?,?,?,?,?)",
+                    (d["lab_id"], year, month, d["day"], d["users"], d["activity"]),
+                )
+                details_added += 1
 
             for r in parsed["rows"]:
                 if overwrite:
@@ -760,19 +864,22 @@ def admin_import():
             per_period_stats.append({
                 "sheet": parsed["sheet"], "year": year, "month": month,
                 "inserted": inserted, "updated": updated, "skipped": skipped,
+                "details": details_added,
             })
         conn.commit()
 
     summary_parts = []
-    total_in = total_up = total_sk = 0
+    total_in = total_up = total_sk = total_det = 0
     for s in per_period_stats:
         label = f"{MONTHS_ID[s['month']]} {s['year']}"
         bits = []
         if s["inserted"]: bits.append(f"{s['inserted']} entri baru")
         if s["updated"]:  bits.append(f"{s['updated']} entri kosong diisi")
         if s["skipped"]:  bits.append(f"{s['skipped']} DILEWATI")
+        if s["details"]:  bits.append(f"{s['details']} detail kegiatan")
         summary_parts.append(f"{label} ({', '.join(bits) if bits else 'tidak ada perubahan'})")
         total_in += s["inserted"]; total_up += s["updated"]; total_sk += s["skipped"]
+        total_det += s["details"]
 
     skipped_sheets = [s for s in sheet_results if not s["ok"]]
     msg_head = (
@@ -781,6 +888,8 @@ def admin_import():
     )
     if not overwrite and total_sk:
         msg_head += f", {total_sk} DILEWATI karena sudah berisi data"
+    if total_det:
+        msg_head += f", {total_det} baris detail kegiatan dari kolom KETERANGAN"
     msg_head += "). " + " | ".join(summary_parts)
     if skipped_sheets:
         msg_head += (
@@ -880,6 +989,87 @@ def admin_sync_holidays():
     return redirect(request.referrer or url_for("admin"))
 
 
+@app.route("/admin/photo/<int:pid>/edit", methods=["POST"])
+@login_required
+def admin_edit_photo(pid):
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id, filename, event_date, lab_id, caption FROM photo WHERE id=?",
+            (pid,),
+        ).fetchone()
+    if not existing:
+        abort(404)
+
+    event_date = (request.form.get("event_date") or "").strip()
+    lab_id_raw = (request.form.get("lab_id") or "").strip()
+    caption = (request.form.get("caption") or "").strip()
+    new_file = request.files.get("photo")
+    redirect_to = request.referrer or url_for("gallery")
+
+    try:
+        dt = datetime.strptime(event_date, "%Y-%m-%d").date()
+    except ValueError:
+        flash("Tanggal kegiatan wajib diisi (format YYYY-MM-DD).", "error")
+        return redirect(redirect_to)
+
+    if dt > today_wib():
+        flash("Tanggal kegiatan tidak boleh di masa depan.", "error")
+        return redirect(redirect_to)
+
+    lab_id = int(lab_id_raw) if lab_id_raw else None
+
+    # Activity guard mirrors the upload route: a lab-specific photo needs
+    # recorded utilisation on that date. "Umum / tidak spesifik" bypasses it.
+    if lab_id is not None:
+        with get_conn() as conn:
+            lab_row = conn.execute("SELECT name FROM lab WHERE id=?", (lab_id,)).fetchone()
+            act = conn.execute(
+                "SELECT fr, jlh, drs FROM entry "
+                "WHERE lab_id=? AND year=? AND month=? AND day=?",
+                (lab_id, dt.year, dt.month, dt.day),
+            ).fetchone()
+        if not act or (act["fr"] == 0 and act["jlh"] == 0 and act["drs"] == 0):
+            lab_name = lab_row["name"] if lab_row else f"lab #{lab_id}"
+            flash(
+                f"Tidak dapat menyimpan: belum ada aktivitas tercatat untuk "
+                f"{lab_name} pada tanggal {event_date}. "
+                f"Catat data utilisasi (FR/JLH/DRS) dulu, atau pilih "
+                f"\"Umum / tidak spesifik\".",
+                "error",
+            )
+            return redirect(redirect_to)
+
+    replacement_name: str | None = None
+    if new_file and new_file.filename:
+        ok, err = validate_image_upload(new_file)
+        if not ok:
+            flash(err, "error")
+            return redirect(redirect_to)
+        ext = new_file.filename.rsplit(".", 1)[1].lower()
+        safe = secure_filename(new_file.filename.rsplit(".", 1)[0])[:40] or "photo"
+        replacement_name = f"{event_date}_{safe}_{secrets.token_hex(4)}.{ext}"
+        new_file.save(UPLOAD_DIR / replacement_name)
+
+    final_name = replacement_name or existing["filename"]
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE photo SET filename=?, event_date=?, lab_id=?, caption=? WHERE id=?",
+            (final_name, event_date, lab_id, caption, pid),
+        )
+        conn.commit()
+
+    # Only unlink the old file *after* the DB row has been updated so a crash
+    # mid-update can never leave a row pointing at a missing file.
+    if replacement_name and replacement_name != existing["filename"]:
+        try:
+            (UPLOAD_DIR / existing["filename"]).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    flash("Foto diperbarui.", "success")
+    return redirect(redirect_to)
+
+
 @app.route("/admin/photo/<int:pid>/delete", methods=["POST"])
 @login_required
 def admin_delete_photo(pid):
@@ -906,7 +1096,7 @@ def export_excel():
         month = int(request.args["month"])
     except (KeyError, ValueError):
         abort(400)
-    summary, days, _day_meta, _photos = period_summary(year, month)
+    summary, days, _day_meta, _photos, _details = period_summary(year, month)
 
     wb = openpyxl.Workbook()
     ws = wb.active

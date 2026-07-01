@@ -5,6 +5,7 @@
 
   // ---- Hover photo preview ----
   const photos = (typeof PHOTOS_MAP === 'object' && PHOTOS_MAP) ? PHOTOS_MAP : {};
+  const details = (typeof DETAILS_MAP === 'object' && DETAILS_MAP) ? DETAILS_MAP : {};
   const photoBase = typeof PHOTO_BASE === 'string' ? PHOTO_BASE : '/uploads/photos/';
   let tip = document.querySelector('.photo-tip');
   if (!tip) {
@@ -73,8 +74,9 @@
     const lab = SUMMARY.labs.find(l => String(l.id) === String(labId));
     if (!lab) return;
     const cell = lab.days[day];
-    const photoList = (photos[labId] && photos[labId][day]) || [];
-    if (!cell.drs && !photoList.length) return;
+    const photoList  = (photos[labId]  && photos[labId][day])  || [];
+    const detailList = (details[labId] && details[labId][day]) || [];
+    if (!cell.drs && !photoList.length && !detailList.length) return;
 
     const date = `${day} ${SUMMARY.monthName} ${SUMMARY.year}`;
     document.getElementById('cellModalTitle').textContent = `${lab.name}`;
@@ -90,6 +92,27 @@
       ket.classList.remove('d-none');
     } else {
       ket.classList.add('d-none');
+    }
+
+    const detailWrap = document.getElementById('cellModalDetailWrap');
+    const detailList_el = document.getElementById('cellModalDetailList');
+    if (detailWrap && detailList_el) {
+      if (detailList.length) {
+        detailList_el.innerHTML = detailList.map(d => {
+          const who = escapeHtml(d.users || '—');  // em-dash if empty
+          const what = escapeHtml(d.activity || '—');
+          return (
+            `<li class="detail-row">` +
+              `<div><span class="detail-label">Pengguna:</span> <span class="detail-value">${who}</span></div>` +
+              `<div><span class="detail-label">Kegiatan:</span> <span class="detail-value">${what}</span></div>` +
+            `</li>`
+          );
+        }).join('');
+        detailWrap.classList.remove('d-none');
+      } else {
+        detailWrap.classList.add('d-none');
+        detailList_el.innerHTML = '';
+      }
     }
 
     const grid = document.getElementById('cellModalPhotos');

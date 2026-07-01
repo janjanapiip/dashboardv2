@@ -83,6 +83,31 @@
     });
   }
 
+  // ---- Drag & drop wiring (import xlsx + foto kegiatan) ----
+  if (window.SPPDropzone) {
+    SPPDropzone.enable(
+      document.getElementById('importDropzone'),
+      document.getElementById('importFile'),
+    );
+    SPPDropzone.enable(
+      document.getElementById('photoDropzone'),
+      document.getElementById('photoFile'),
+    );
+  }
+
+  // ---- Import form: filename hint when a file is picked or dropped ----
+  const importFile = document.getElementById('importFile');
+  const importHint = document.getElementById('importHint');
+  if (importFile && importHint) {
+    importFile.addEventListener('change', () => {
+      const f = importFile.files[0];
+      if (!f) { importHint.textContent = ''; return; }
+      const kb = (f.size / 1024).toFixed(1);
+      importHint.className = 'small mt-1 text-success';
+      importHint.textContent = `Siap diunggah: ${f.name} (${kb} KB).`;
+    });
+  }
+
   // ---- Photo form: live activity check ----
   const photoForm   = document.getElementById('photoForm');
   const photoDate   = document.getElementById('photoDate');

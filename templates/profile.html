@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% block title %}Profil SPP &mdash; STIP Jakarta{% endblock %}
+{% block content %}
+
+<style>
+  .profile-hero {
+    background: linear-gradient(135deg, #0b3d91 0%, #1a5fc4 100%);
+    color: #fff;
+    border-radius: .75rem;
+    padding: 1.75rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .profile-hero h2 { margin: 0; font-weight: 700; }
+  .profile-hero p  { margin: .35rem 0 0; opacity: .9; }
+
+  .tier-label {
+    display: inline-block;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #6c757d;
+    border-left: 3px solid #0b3d91;
+    padding-left: .55rem;
+    margin: 1.25rem 0 .85rem;
+  }
+
+  .person-card {
+    border: 1px solid #e3e6ea;
+    border-radius: .75rem;
+    background: #fff;
+    height: 100%;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .person-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .5rem 1rem rgba(11,61,145,.12);
+  }
+  .person-card .card-body { padding: 1.1rem 1.1rem 1rem; }
+
+  .avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    font-weight: 700; font-size: 1.05rem;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .avatar-ketua    { background: #0b3d91; }
+  .avatar-puket    { background: #1565c0; }
+  .avatar-kepala   { background: #2e7d32; }
+  .avatar-staff    { background: #ef6c00; }
+  .avatar-vacant   { background: #adb5bd; }
+
+  .role-badge {
+    font-size: .7rem; font-weight: 600;
+    padding: .25rem .55rem;
+    border-radius: 999px;
+    background: #eef2f8; color: #0b3d91;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+
+  .person-name { font-weight: 600; font-size: 1rem; line-height: 1.25; }
+  .person-meta { font-size: .8rem; color: #6c757d; }
+
+  .task-toggle {
+    font-size: .82rem;
+    color: #0b3d91;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .task-toggle::after { content: " \25BE"; }
+  .task-toggle[aria-expanded="true"]::after { content: " \25B4"; }
+
+  .task-list {
+    font-size: .85rem;
+    margin: .65rem 0 0;
+    padding-left: 1.1rem;
+    color: #495057;
+  }
+  .task-list li { margin-bottom: .3rem; }
+
+  .org-line {
+    height: 24px;
+    border-left: 2px dashed #cfd8e3;
+    margin-left: 30px;
+  }
+</style>
+
+<div class="profile-hero">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <div style="font-size:2.2rem; line-height:1">&#9875;</div>
+    <div>
+      <h2>Profil Tim SPP</h2>
+      <p>Unit Sarana Praktek Pelaut &mdash; Sekolah Tinggi Ilmu Pelayaran Jakarta</p>
+    </div>
+  </div>
+</div>
+
+{# ---------- TIER 1 — Pimpinan STIP ---------- #}
+<div class="tier-label">Pimpinan Sekolah Tinggi</div>
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="person-card">
+      <div class="card-body d-flex gap-3">
+        <div class="avatar avatar-ketua">TC</div>
+        <div class="flex-grow-1">
+          <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+            <span class="role-badge">Ketua</span>
+          </div>
+          <div class="person-name">Dr. Capt. Tri Cahyadi, M.H., M.Mar</div>
+          <div class="person-meta">Ketua STIP Jakarta</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="person-card">
+      <div class="card-body d-flex gap-3">
+        <div class="avatar avatar-puket">W</div>
+        <div class="flex-grow-1">
+          <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+            <span class="role-badge">Puket I</span>
+          </div>
+          <div class="person-name">Dr. Winarno, S.ST., M.H.</div>
+          <div class="person-meta">Pembantu Ketua Bidang Akademik</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ---------- TIER 2 — Kepala Unit ---------- #}
+<div class="tier-label">Pimpinan Unit Sarana Praktek Pelaut</div>
+<div class="row g-3">
+  <div class="col-12">
+    <div class="person-card border-success border-2">
+      <div class="card-body">
+        <div class="d-flex gap-3">
+          <div class="avatar avatar-kepala">DZ</div>
+          <div class="flex-grow-1">
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+              <span class="role-badge" style="background:#e6f4ea; color:#1b5e20">Kepala Unit</span>
+            </div>
+            <div class="person-name">Diah Zakiah, S.T., M.T</div>
+            <div class="person-meta">NIP. 197905172006042015 &middot; Kepala Unit Sarana Praktek Pelaut</div>
+          </div>
+        </div>
+
+        <a class="task-toggle d-inline-block mt-2" data-bs-toggle="collapse"
+           href="#tasksKepalaUnit" role="button" aria-expanded="false">
+          Lihat tugas pokok
+        </a>
+        <div class="collapse" id="tasksKepalaUnit">
+          <div class="small text-muted mb-1 mt-2">
+            Sesuai <em>Pasal 56</em> &mdash; Tugas Unit Sarana Praktek Pelaut, STIP Jakarta (BPSDM Kementerian Perhubungan):
+          </div>
+          <ol class="task-list" style="list-style: lower-alpha;">
+            <li>Merencanakan dan melaksanakan pemeliharaan/perawatan Laboratorium dan Simulator untuk jurusan Nautika, Teknika serta KALK yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Menyusun perencanaan dan pengembangan kebutuhan Sarana Praktek Pelaut.</li>
+            <li>Menyusun perencanaan dan pengembangan kerjasama dengan Institusi/pihak lain.</li>
+            <li>Melakukan koordinasi dengan Divisi Pengembangan Usaha dalam pelaksanaan kerjasama dengan Institusi/pihak lain.</li>
+            <li>Melakukan inventarisasi dan identifikasi Laboratorium dan Simulator yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Mengusulkan pengadaan kebutuhan suku cadang/peralatan Laboratorium dan Simulator yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Melakukan pengaturan, pelayanan dan pengawasan penggunaan Laboratorium dan Simulator yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Mengusulkan perbaikan Laboratorium dan Simulator yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Mengawasi pelaksanaan perbaikan Laboratorium dan Simulator yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Menyiapkan dan mengisi <em>log book</em> atas penggunaan Laboratorium dan Simulator yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Membuat skenario bahan ajar praktek di Laboratorium dan Simulator yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Membuat Standar Operasional Prosedur setiap Laboratorium dan Simulator yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Menyiapkan peralatan keselamatan kerja di setiap Laboratorium dan Simulator yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Membuat rekapitulasi penggunaan Laboratorium dan Simulator yang berada di Unit Sarana Praktek Pelaut.</li>
+            <li>Melakukan evaluasi seluruh kegiatan Unit Sarana Praktek Pelaut.</li>
+            <li>Mengadministrasikan seluruh kegiatan Unit Sarana Praktek Pelaut.</li>
+            <li>Membuat program kerja dan laporan berkala pelaksanaan Unit Sarana Praktek Pelaut.</li>
+            <li>Melakukan koordinasi dengan satuan kerja yang terkait.</li>
+            <li>Menjaga dan memelihara barang inventaris yang berada di lingkup kerjanya.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ---------- TIER 3 — Tim Operasional ---------- #}
+<div class="tier-label">Tim Operasional &amp; Penjaminan Mutu</div>
+<div class="row g-3">
+
+  {# --- Penyusun Rencana --- #}
+  <div class="col-lg-6">
+    <div class="person-card">
+      <div class="card-body">
+        <div class="d-flex gap-3">
+          <div class="avatar avatar-staff">NH</div>
+          <div class="flex-grow-1">
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+              <span class="role-badge" style="background:#fff3e0; color:#e65100">Penyusun Rencana Pemeliharaan &amp; Perbaikan</span>
+            </div>
+            <div class="person-name">Nazilul Hamidi, A.Md, S.AP, M.AP.</div>
+          </div>
+        </div>
+        <a class="task-toggle d-inline-block mt-2" data-bs-toggle="collapse"
+           href="#tasksNazilul" role="button" aria-expanded="false">
+          Lihat tugas pokok
+        </a>
+        <div class="collapse" id="tasksNazilul">
+          <ul class="task-list">
+            <li>Mengatur jadwal perbaikan dan pemeliharaan rutin harian, bulanan, dan tahunan.</li>
+            <li>Mengidentifikasi kebutuhan sumber daya dan anggaran, serta menyusun SOP sesuai standar keselamatan dan teknis.</li>
+            <li>Menyusun rencana kerja tahunan, menentukan prioritas kegiatan dan anggaran, serta menyesuaikannya dengan target organisasi dan regulasi.</li>
+            <li>Memantau pelaksanaan, menyusun laporan evaluasi, dan memberikan rekomendasi perbaikan atau penyesuaian rencana.</li>
+            <li>Berkoordinasi dengan kepala laboratorium, teknisi, dan pihak terkait serta menyampaikan kebutuhan anggaran dan sumber daya.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# --- GKM --- #}
+  <div class="col-lg-6">
+    <div class="person-card">
+      <div class="card-body">
+        <div class="d-flex gap-3">
+          <div class="avatar avatar-staff">FA</div>
+          <div class="flex-grow-1">
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+              <span class="role-badge" style="background:#fff3e0; color:#e65100">GKM (Gugus Kendali Mutu)</span>
+            </div>
+            <div class="person-name">Fauzan Afif</div>
+          </div>
+        </div>
+        <a class="task-toggle d-inline-block mt-2" data-bs-toggle="collapse"
+           href="#tasksGKM" role="button" aria-expanded="false">
+          Lihat tugas pokok
+        </a>
+        <div class="collapse" id="tasksGKM">
+          <ul class="task-list">
+            <li>Memeriksa kondisi sarana praktik dan alat fasilitas agar memenuhi standar keamanan.</li>
+            <li>Memastikan kegiatan praktik berjalan sesuai SOP.</li>
+            <li>Melakukan monitoring dan evaluasi pemakaian sarana praktik.</li>
+            <li>Berkoordinasi dengan kepala laboratorium dan instruktur.</li>
+            <li>Menyimpan catatan pengawasan, inspeksi, dan pemeliharaan, serta menyusun laporan untuk pimpinan atau audit.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# --- Operator Lab --- #}
+  <div class="col-lg-6">
+    <div class="person-card">
+      <div class="card-body">
+        <div class="d-flex gap-3">
+          <div class="avatar avatar-staff">SJ</div>
+          <div class="flex-grow-1">
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+              <span class="role-badge" style="background:#fff3e0; color:#e65100">Operator Laboratorium</span>
+            </div>
+            <div class="person-name">Suharso Jati</div>
+          </div>
+        </div>
+        <a class="task-toggle d-inline-block mt-2" data-bs-toggle="collapse"
+           href="#tasksOperator" role="button" aria-expanded="false">
+          Lihat tugas pokok
+        </a>
+        <div class="collapse" id="tasksOperator">
+          <ul class="task-list">
+            <li>Menyiapkan peralatan, bahan, dan instrumen laboratorium serta memastikan semuanya layak pakai dan aman.</li>
+            <li>Mengoperasikan peralatan laboratorium sesuai prosedur dan memastikan penggunaan aman sesuai standar K3.</li>
+            <li>Membersihkan, merawat, dan menyimpan peralatan laboratorium, serta melakukan pengecekan rutin dan melaporkan kerusakan.</li>
+            <li>Mencatat penggunaan alat, bahan, dan hasil kegiatan laboratorium serta menyusun laporan kondisi sarana.</li>
+            <li>Menjaga kebersihan, ketertiban, dan keamanan laboratorium serta menerapkan prosedur keselamatan kerja (K3).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# --- Pranata Lab --- #}
+  <div class="col-lg-6">
+    <div class="person-card">
+      <div class="card-body">
+        <div class="d-flex gap-3">
+          <div class="avatar avatar-staff">FA</div>
+          <div class="flex-grow-1">
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+              <span class="role-badge" style="background:#fff3e0; color:#e65100">Pranata Laboratorium Pendidikan</span>
+            </div>
+            <div class="person-name">Fauzan Afif</div>
+          </div>
+        </div>
+        <a class="task-toggle d-inline-block mt-2" data-bs-toggle="collapse"
+           href="#tasksPranata" role="button" aria-expanded="false">
+          Lihat tugas pokok
+        </a>
+        <div class="collapse" id="tasksPranata">
+          <ul class="task-list">
+            <li>Menyiapkan peralatan, bahan, dan instrumen laboratorium serta memastikan semuanya layak pakai dan aman.</li>
+            <li>Mengoperasikan peralatan laboratorium sesuai prosedur dan memastikan penggunaan aman sesuai standar K3.</li>
+            <li>Membersihkan, merawat, dan menyimpan peralatan laboratorium, serta melakukan pengecekan rutin dan melaporkan kerusakan.</li>
+            <li>Mencatat penggunaan alat, bahan, dan hasil kegiatan laboratorium serta menyusun laporan kondisi sarana.</li>
+            <li>Menjaga kebersihan, ketertiban, dan keamanan laboratorium serta menerapkan prosedur keselamatan kerja (K3).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="text-end text-muted small mt-4">
+  Jakarta, Mei 2026 &mdash; Kepala Unit Sarana Praktek Pelaut, <b>Diah Zakiah, S.T., M.T</b>
+</div>
+
+{% endblock %}
