@@ -13,13 +13,13 @@ for the configured number of seconds.
 Stop the watcher with Ctrl+C.
 """
 import argparse
-import os
-import shutil
 import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
+from vercel_auth import ensure_authenticated, find_vercel_cli
 
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = ROOT / "data" / "app.db"
@@ -40,14 +40,6 @@ def fingerprint() -> tuple[int, float, int]:
     return (db_size, round(db_mtime, 2), photo_count)
 
 
-def find_vercel() -> str | None:
-    cli = shutil.which("vercel")
-    if cli:
-        return cli
-    candidate = Path(os.environ.get("APPDATA", "")) / "npm" / "vercel.cmd"
-    return str(candidate) if candidate.exists() else None
-
-
 def export_and_deploy(vercel_cli: str, dist: Path) -> bool:
     print(f"  [{datetime.now():%H:%M:%S}] Menjalankan static_export ...")
     r = subprocess.run(
@@ -57,11 +49,13 @@ def export_and_deploy(vercel_cli: str, dist: Path) -> bool:
     if r.returncode != 0:
         print(f"  [{datetime.now():%H:%M:%S}] static_export gagal (exit {r.returncode}).")
         return False
+    print(f"  [{datetime.now():%H:%M:%S}] Verifikasi login Vercel ...")
+    token = ensure_authenticated(vercel_cli)
     print(f"  [{datetime.now():%H:%M:%S}] Mendeploy ke Vercel ...")
-    r = subprocess.run(
-        [vercel_cli, "--prod", "--yes"],
-        cwd=str(dist),
-    )
+    cmd = [vercel_cli, "--prod", "--yes"]
+    if token:
+        cmd += ["--token", token]
+    r = subprocess.run(cmd, cwd=str(dist))
     if r.returncode != 0:
         print(f"  [{datetime.now():%H:%M:%S}] vercel deploy gagal (exit {r.returncode}).")
         return False
@@ -77,7 +71,7 @@ def main():
                     help="Lakukan satu siklus deploy lalu keluar")
     args = ap.parse_args()
 
-    vercel_cli = find_vercel()
+    vercel_cli = find_vercel_cli()
     if not vercel_cli:
         print("ERROR: Vercel CLI tidak ditemukan. Jalankan 'npm install -g vercel' dulu.")
         return 2
