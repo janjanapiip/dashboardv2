@@ -28,6 +28,22 @@
 
 {% include "_legend.html" %}
 
+{% if retired_labs %}
+<div class="alert alert-secondary py-2 small mb-3" role="status">
+  <b>Pemberitahuan:</b> sarana berikut sudah tidak beroperasi pada tahun {{ year }} —
+  data setelah bulan nonaktif tidak ditampilkan / dihitung nol:
+  <ul class="mb-0 mt-1">
+    {% for r in retired_labs %}
+      <li>
+        <b>{{ r.name }}</b>
+        <span class="text-muted">({{ r.code }}) — tidak aktif sejak
+          {{ months[r.from_month] }} {{ r.from_year }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 {% set total_fr  = labs|sum(attribute='fr_total') %}
 {% set total_jp  = labs|sum(attribute='jp_total') %}
 {% set total_drs = labs|sum(attribute='drs_total') %}

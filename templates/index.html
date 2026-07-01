@@ -35,6 +35,18 @@
 
 {% include "_legend.html" %}
 
+{% if retired_labs %}
+<div class="alert alert-secondary py-2 small mb-3" role="status">
+  <b>Pemberitahuan:</b> mulai Mei 2026, beberapa sarana berikut sudah tidak beroperasi
+  dan tidak ditampilkan pada rekap bulan ini:
+  <ul class="mb-0 mt-1">
+    {% for code, name in retired_labs %}
+      <li><b>{{ name }}</b> <span class="text-muted">({{ code }})</span></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 {% set holiday_count = day_meta.values()|selectattr('holiday')|list|length %}
 {% if holiday_count %}
 <div class="alert alert-warning py-2 small mb-3">
@@ -131,15 +143,18 @@
             {% set c = lab.days[d] %}
             {% set m = day_meta[d] %}
             {% set has_photos = photos_map.get(lab.id, {}).get(d) %}
+            {% set has_detail = details_map.get(lab.id, {}).get(d) %}
             <td class="text-center activity-cell
                        {{ 'cell-active' if c.drs else 'cell-empty' }}
                        {{ 'has-photo' if has_photos else '' }}
+                       {{ 'has-detail' if has_detail else '' }}
                        {{ 'day-holiday-bg' if m.holiday else ('day-weekend-bg' if m.is_weekend) }}"
                 data-lab-id="{{ lab.id }}" data-day="{{ d }}"
-                {% if c.drs or has_photos %}role="button" tabindex="0"{% endif %}
-                title="FR {{ c.fr }} / JLH {{ c.jlh }} / DRS {{ c.drs }}{% if has_photos %} &mdash; {{ has_photos|length }} foto{% endif %}">
+                {% if c.drs or has_photos or has_detail %}role="button" tabindex="0"{% endif %}
+                title="FR {{ c.fr }} / JLH {{ c.jlh }} / DRS {{ c.drs }}{% if has_photos %} &mdash; {{ has_photos|length }} foto{% endif %}{% if has_detail %} &mdash; {{ has_detail|length }} detail{% endif %}">
               {{ '%.0f' % c.drs if c.drs else '' }}
               {% if has_photos %}<span class="photo-dot" aria-hidden="true">&#128247;</span>{% endif %}
+              {% if has_detail %}<span class="detail-dot" aria-hidden="true">&#128221;</span>{% endif %}
             </td>
           {% endfor %}
           <td>{{ lab.keterangan }}</td>
@@ -170,6 +185,10 @@
       <div class="modal-body">
         <div class="row g-3 mb-3" id="cellModalStats"></div>
         <div id="cellModalKeterangan" class="alert alert-info small d-none"></div>
+        <div id="cellModalDetailWrap" class="d-none">
+          <h6 class="mt-3 mb-2">Detail Kegiatan</h6>
+          <ul id="cellModalDetailList" class="list-unstyled small mb-0"></ul>
+        </div>
         <h6 class="mt-3 mb-2">Foto Kegiatan</h6>
         <div id="cellModalPhotos" class="photo-grid"></div>
         <div id="cellModalNoPhotos" class="text-muted small d-none">
@@ -199,6 +218,7 @@
 <script>
 const SUMMARY = {{ {'labs': labs, 'days': days, 'year': year, 'month': month, 'monthName': month_name} | tojson }};
 const PHOTOS_MAP = {{ photos_map | tojson }};
+const DETAILS_MAP = {{ details_map | tojson }};
 const PHOTO_BASE = "{{ url_for('serve_photo', filename='') }}";
 </script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>

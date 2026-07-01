@@ -27,9 +27,15 @@
           <table class="table table-sm small mb-0">
             <tbody>
               {% for code, desc in lab_descriptions.items() %}
-              <tr>
+              <tr {% if code in retired_lab_codes %}class="text-decoration-line-through opacity-75"{% endif %}>
                 <td class="fw-bold text-primary" style="width:60px">{{ code }}</td>
-                <td class="text-muted">{{ desc }}</td>
+                <td class="text-muted">
+                  {{ desc }}
+                  {% if code in retired_lab_codes %}
+                    {% set rm = retired_lab_meta[code] %}
+                    <span class="badge bg-secondary ms-1">Tidak aktif sejak {{ months_short[rm[1]] }} {{ rm[0] }}</span>
+                  {% endif %}
+                </td>
               </tr>
               {% endfor %}
             </tbody>

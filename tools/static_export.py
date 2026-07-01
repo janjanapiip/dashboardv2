@@ -45,6 +45,8 @@ HASHABLE_ASSETS = [
     "js/dashboard.js",
     "js/year.js",
     "js/admin.js",
+    "js/dropzone.js",
+    "js/gallery-admin.js",
 ]
 ASSET_HASHES: dict[str, str] = {}
 
@@ -116,7 +118,8 @@ VERCEL_JSON = b"""\
     { "source": "/year",                "destination": "/year.html" },
     { "source": "/year/:year",          "destination": "/year-:year.html" },
     { "source": "/period/:year/:month", "destination": "/:year-:month.html" },
-    { "source": "/gallery",             "destination": "/gallery.html" }
+    { "source": "/gallery",             "destination": "/gallery.html" },
+    { "source": "/profile",             "destination": "/profile.html" }
   ],
   "headers": [
     { "source": "/(.*).html",      "headers": [{ "key": "Cache-Control", "value": "public, max-age=60, s-maxage=60, must-revalidate" }] },
@@ -207,6 +210,8 @@ def main() -> int:
     # Gallery
     log("  Menulis gallery.html ...")
     save_html("gallery.html", client.get("/gallery").data)
+    log("  Menulis profile.html ...")
+    save_html("profile.html", client.get("/profile").data)
 
     # JSON snapshots used by client-side hover preview
     log("  Menulis API JSON snapshots ...")
