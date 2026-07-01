@@ -56,9 +56,21 @@ CREATE TABLE IF NOT EXISTS holiday (
     synced_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_entry_period ON entry(year, month);
-CREATE INDEX IF NOT EXISTS idx_photo_date   ON photo(event_date);
-CREATE INDEX IF NOT EXISTS idx_photo_lab    ON photo(lab_id, event_date);
+CREATE TABLE IF NOT EXISTS detail (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    lab_id   INTEGER NOT NULL REFERENCES lab(id),
+    year     INTEGER NOT NULL,
+    month    INTEGER NOT NULL,
+    day      INTEGER NOT NULL,
+    users    TEXT NOT NULL DEFAULT '',
+    activity TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_entry_period  ON entry(year, month);
+CREATE INDEX IF NOT EXISTS idx_photo_date    ON photo(event_date);
+CREATE INDEX IF NOT EXISTS idx_photo_lab     ON photo(lab_id, event_date);
+CREATE INDEX IF NOT EXISTS idx_detail_period ON detail(year, month);
+CREATE INDEX IF NOT EXISTS idx_detail_cell   ON detail(lab_id, year, month, day);
 """
 
 

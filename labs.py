@@ -14,6 +14,40 @@ LABS = [
     (13, "ACSL",  "AUTOMATIC CONTROL SYSTEM LABORATORY (ACSL)"),
 ]
 
+# Sarana yang dinonaktifkan mulai periode tertentu. Format: code -> (year, month)
+# Sebelum bulan ini lab tetap ditampilkan (data historis tetap utuh);
+# mulai bulan ini ke atas lab disembunyikan dari tabel/grafik & ditandai
+# "Tidak aktif" pada panel keterangan singkatan.
+RETIRED_LABS = {
+    "BRF":  (2026, 5),
+    "LCHS": (2026, 5),
+    "NAS":  (2026, 5),
+    "SOL":  (2026, 5),
+    "ERGL": (2026, 5),
+}
+
+
+def active_labs(year: int, month: int):
+    """Return LABS list filtered to those still active in the given period."""
+    out = []
+    for lab in LABS:
+        _, code, _ = lab
+        retired = RETIRED_LABS.get(code)
+        if retired and (year, month) >= retired:
+            continue
+        out.append(lab)
+    return out
+
+
+def retired_in_period(year: int, month: int):
+    """Return [(code, name)] of labs that are inactive in the given period."""
+    out = []
+    for lab_id, code, name in LABS:
+        retired = RETIRED_LABS.get(code)
+        if retired and (year, month) >= retired:
+            out.append((code, name))
+    return out
+
 # Penjelasan ringkas tiap laboratorium / simulator
 LAB_DESCRIPTIONS = {
     "CHL":  "Laboratorium penanganan muatan kapal: pelatihan loading, lashing, dan stowage muatan curah maupun peti kemas.",
