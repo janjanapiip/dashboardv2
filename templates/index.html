@@ -47,16 +47,6 @@
 </div>
 {% endif %}
 
-{% set holiday_count = day_meta.values()|selectattr('holiday')|list|length %}
-{% if holiday_count %}
-<div class="alert alert-warning py-2 small mb-3">
-  <b>{{ holiday_count }} hari libur nasional / cuti bersama</b> pada {{ month_name }} {{ year }}:
-  {% for d, meta in day_meta.items() if meta.holiday %}
-    <span class="badge bg-danger me-1" title="{{ meta.holiday }}">{{ d }} &mdash; {{ meta.holiday }}</span>
-  {% endfor %}
-</div>
-{% endif %}
-
 <div class="row g-3 mb-3">
   <div class="col-md-3"><div class="card kpi"><div class="card-body">
     <div class="kpi-label">Total Frekuensi (JF)</div>
@@ -102,6 +92,16 @@
   <div class="chart-wrap chart-wrap-lg"><canvas id="chartDaily"></canvas></div>
 </div></div>
 
+{% set holiday_count = day_meta.values()|selectattr('holiday')|list|length %}
+{% if holiday_count %}
+<div class="alert alert-warning py-2 small mb-2">
+  <b>{{ holiday_count }} hari libur nasional / cuti bersama</b> pada {{ month_name }} {{ year }}:
+  {% for d, meta in day_meta.items() if meta.holiday %}
+    <span class="badge bg-danger me-1" title="{{ meta.holiday }}">{{ d }} &mdash; {{ meta.holiday }}</span>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="card"><div class="card-body">
   <h6 class="card-title">Rincian per Laboratorium</h6>
   <div class="table-responsive">
@@ -113,15 +113,18 @@
           <th rowspan="2">JF</th>
           <th rowspan="2">JP</th>
           <th rowspan="2">Durasi (Jam)</th>
-          <th colspan="{{ days }}">Tanggal Hari Kerja</th>
+          <th colspan="{{ days }}" class="fw-bold">Tanggal Hari Kerja &mdash; {{ month_name }} {{ year }}</th>
           <th rowspan="2">Keterangan</th>
         </tr>
         <tr class="text-center">
+          {% set DOW_ID = ["Sen","Sel","Rab","Kam","Jum","Sab","Min"] %}
           {% for d in range(1, days+1) %}
             {% set m = day_meta[d] %}
             <th class="{% if m.holiday %}day-holiday{% elif m.is_weekend %}day-weekend{% endif %}"
-                title="{{ m.holiday if m.holiday else ('Akhir pekan' if m.is_weekend else '') }}">
-              {{ d }}
+                title="{{ m.holiday if m.holiday else ('Akhir pekan' if m.is_weekend else '') }}"
+                style="line-height:1.1; padding:2px 3px;">
+              <div>{{ d }}</div>
+              <div class="fw-normal {{ 'text-danger' if m.holiday or m.is_weekend else 'text-muted' }}" style="font-size:.65em">{{ DOW_ID[m.dow] }}</div>
             </th>
           {% endfor %}
         </tr>
