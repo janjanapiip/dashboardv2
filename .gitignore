@@ -48,3 +48,6 @@ _inspect.py
 # Master file extraction artifacts + backups
 master/juni_extracted.json
 master/*.BACKUP-*.xlsx
+
+# Excel lock files
+master/~$*.xlsx

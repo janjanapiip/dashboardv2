@@ -121,31 +121,37 @@ def _is_new_format(ws) -> bool:
     return bool(v) and _normalize(str(v)) == "kegiatan"
 
 
-def _find_lab_data_row(ws, lab_id: int, lab_name: str, stride: int):
-    """Locate a lab's DATA row. Best-effort name match with positional fallback.
-    stride: 1 for old format, 2 for new format (data + Kegiatan)."""
-    target = _normalize(lab_name)
-    best_ratio, best_row = 0.0, None
-    # In new format only data rows have real lab names; Kegiatan rows just say "Kegiatan"
-    # We can search only every `stride`-th row starting from FIRST_DATA_ROW.
-    scan_end = FIRST_DATA_ROW + 8 * stride + 2  # 8 labs * stride, plus a small buffer
-    for r in range(FIRST_DATA_ROW, scan_end, stride):
-        v = ws.cell(row=r, column=2).value
-        if not v:
+def _build_row_to_lab_map(ws, stride: int) -> dict[int, int]:
+    """Walk the sheet's actual lab rows and assign each to the best-matching lab_id
+    from labs.LABS. Direction is IMPORTANT: iterating labs → best-row (the old logic)
+    causes retired labs to steal rows from active labs when the sheet only contains
+    the 8 non-retired labs. Iterating rows → best-lab makes retired labs unmatched.
+
+    Threshold 0.75 is deliberately high so unrelated names don't match. Positional
+    fallback is deliberately removed here — if the sheet's row name is unreadable,
+    we skip it and log rather than mis-assigning."""
+    # Scan up to ~13 possible lab rows (with stride) to be safe if sheet later grows.
+    max_rows = 13 * max(stride, 1) + FIRST_DATA_ROW
+    result: dict[int, int] = {}
+    used_labs: set[int] = set()
+    for r in range(FIRST_DATA_ROW, max_rows, stride):
+        raw = ws.cell(row=r, column=2).value
+        if not raw:
             continue
-        normalized = _normalize(str(v))
-        if normalized == target:
-            return r
-        ratio = SequenceMatcher(None, normalized, target).ratio()
-        if ratio > best_ratio:
-            best_ratio, best_row = ratio, r
-    if best_ratio >= 0.6:
-        return best_row
-    # Positional fallback assumes canonical order (see LABS in labs.py).
-    fallback = FIRST_DATA_ROW + (lab_id - 1) * stride
-    if ws.cell(row=fallback, column=2).value:
-        return fallback
-    return None
+        target = _normalize(str(raw))
+        if not target:
+            continue
+        best_ratio, best_lab_id = 0.0, None
+        for lab_id, _, lab_name in LABS:
+            if lab_id in used_labs:
+                continue
+            ratio = SequenceMatcher(None, _normalize(lab_name), target).ratio()
+            if ratio > best_ratio:
+                best_ratio, best_lab_id = ratio, lab_id
+        if best_lab_id is not None and best_ratio >= 0.75:
+            result[r] = best_lab_id
+            used_labs.add(best_lab_id)
+    return result
 
 
 def _read_kegiatan_new(ws, keg_row: int, base_col: int) -> str:
@@ -174,14 +180,15 @@ def _parse_sheet(ws):
     is_new = _is_new_format(ws)
     stride = 2 if is_new else 1
 
+    # Build sheet-row → lab_id map by walking actual rows in the sheet.
+    # Labs not present in the sheet (e.g. retired ones) simply don't appear here.
+    row_to_lab = _build_row_to_lab_map(ws, stride)
+
     rows = []
     keterangan = {}
     details = []
 
-    for lab_id, _, lab_name in LABS:
-        data_row = _find_lab_data_row(ws, lab_id, lab_name, stride)
-        if data_row is None:
-            continue
+    for data_row, lab_id in row_to_lab.items():
         keg_row = data_row + 1 if is_new else None
 
         for d in range(1, days_in_month + 1):
