@@ -1,33 +1,41 @@
+"""Parse the SPP master workbook.
+
+Supports two layouts:
+
+  OLD (single row per lab, KETERANGAN column with dd/mm parseable text):
+    Row 12 = Lab #1 (FR/JLH/DRS per date + free-text KETERANGAN at end)
+    Row 13 = Lab #2
+    ...
+
+  NEW (2 rows per lab, Kegiatan row directly under data row):
+    Row 12 = Lab #1 data (FR/JLH/DRS per date)
+    Row 13 = Lab #1 "Kegiatan" — one merged 3-col cell per date with activity text
+    Row 14 = Lab #2 data
+    Row 15 = Lab #2 Kegiatan
+    ...
+    Col B on Kegiatan rows literally reads "Kegiatan" — that's the detection marker.
+
+  Both layouts produce the same output dicts (rows / keterangan / details), so the
+  downstream importer and app don't need to know which format they came from.
+"""
 import re
 from calendar import monthrange
 from difflib import SequenceMatcher
 import openpyxl
 from labs import LABS, MONTHS_LOOKUP
 
-FIRST_DATA_ROW = 12  # row 12 = lab #1, row 13 = lab #2, ... row 24 = lab #13
+FIRST_DATA_ROW = 12
 
 LAB_NAME_BY_ID = {lab_id: name for lab_id, _, name in LABS}
 
-# Per-date activity lines in the KETERANGAN cell look like:
-#   05/01 : PUKP, Pasis : Try out
-#   12/1  : PUKP, Pasis, Taruna : UKP
-#   14/1/ : ...  (trailing slash typo — tolerated)
-#   05/01/2026 : ...   (optional year)
-# Body after the date is split on the FIRST remaining colon: left=users, right=activity.
-# Lines that don't match are returned as leftover text so they can still be
-# stored in the legacy whole-month `keterangan` note.
+# Backwards-compat: parses "05/01 : PUKP, Pasis : Try out" style lines in OLD KETERANGAN cells.
 _DETAIL_LINE_RE = re.compile(
     r"^\s*(?P<day>\d{1,2})\s*/\s*(?P<month>\d{1,2})(?:\s*/\s*(?P<year>\d{2,4}))?\s*/?\s*[:\-]\s*(?P<body>.+?)\s*$"
 )
 
 
 def parse_detail_lines(text, sheet_year: int, sheet_month: int):
-    """Split a KETERANGAN cell into per-date detail entries + leftover free text.
-
-    Returns (details, leftover) where:
-      details  = list of {"day": int, "users": str, "activity": str}
-      leftover = list of original lines that didn't match the dd/mm pattern
-    """
+    """OLD-format helper: split a KETERANGAN cell into per-date entries + leftover free text."""
     if text is None:
         return [], []
     details: list[dict] = []
@@ -48,7 +56,6 @@ def parse_detail_lines(text, sheet_year: int, sheet_month: int):
         except (TypeError, ValueError):
             leftover.append(line)
             continue
-        # Reject dates that can't belong to this sheet's month.
         if month != sheet_month or day < 1 or day > days_in_month:
             leftover.append(line)
             continue
@@ -63,6 +70,17 @@ def parse_detail_lines(text, sheet_year: int, sheet_month: int):
             "activity": activity.strip(),
         })
     return details, leftover
+
+
+def _split_users_activity(text: str):
+    """New-format Kegiatan cell may still use 'users : activity' — try to split."""
+    if not text:
+        return "", ""
+    s = str(text).strip()
+    if ":" in s:
+        users, activity = s.split(":", 1)
+        return users.strip(), activity.strip()
+    return "", s
 
 
 def _normalize(s: str) -> str:
@@ -97,12 +115,21 @@ def _parse_period(ws):
     return year, month
 
 
-def _find_lab_row(ws, lab_id, lab_name):
-    """Best-effort name match within rows 12-30 with positional fallback (row = 11 + lab_id).
-    Tolerates typos like 'ENGINEEIRNG WORKSHOP' via SequenceMatcher."""
+def _is_new_format(ws) -> bool:
+    """Detect NEW layout by checking if row 13 col B contains 'Kegiatan'."""
+    v = ws.cell(row=13, column=2).value
+    return bool(v) and _normalize(str(v)) == "kegiatan"
+
+
+def _find_lab_data_row(ws, lab_id: int, lab_name: str, stride: int):
+    """Locate a lab's DATA row. Best-effort name match with positional fallback.
+    stride: 1 for old format, 2 for new format (data + Kegiatan)."""
     target = _normalize(lab_name)
     best_ratio, best_row = 0.0, None
-    for r in range(FIRST_DATA_ROW, 31):
+    # In new format only data rows have real lab names; Kegiatan rows just say "Kegiatan"
+    # We can search only every `stride`-th row starting from FIRST_DATA_ROW.
+    scan_end = FIRST_DATA_ROW + 8 * stride + 2  # 8 labs * stride, plus a small buffer
+    for r in range(FIRST_DATA_ROW, scan_end, stride):
         v = ws.cell(row=r, column=2).value
         if not v:
             continue
@@ -114,16 +141,29 @@ def _find_lab_row(ws, lab_id, lab_name):
             best_ratio, best_row = ratio, r
     if best_ratio >= 0.6:
         return best_row
-    # Positional fallback: standard Master Format places lab N at row 11+N
-    fallback = FIRST_DATA_ROW + lab_id - 1
+    # Positional fallback assumes canonical order (see LABS in labs.py).
+    fallback = FIRST_DATA_ROW + (lab_id - 1) * stride
     if ws.cell(row=fallback, column=2).value:
         return fallback
     return None
 
 
+def _read_kegiatan_new(ws, keg_row: int, base_col: int) -> str:
+    """New format: read the Kegiatan text at (keg_row, base_col). May be part of a merged
+    range whose anchor is base_col; if empty at base_col but the range spans, the merged
+    anchor holds the value. openpyxl returns the anchor value at any cell of the range."""
+    v = ws.cell(row=keg_row, column=base_col).value
+    if v is None:
+        # Sometimes the value is stored on the anchor cell of a merged range.
+        # For safety, scan the 3 subcolumns.
+        for off in (1, 2):
+            v = ws.cell(row=keg_row, column=base_col + off).value
+            if v is not None:
+                break
+    return str(v).strip() if v is not None else ""
+
+
 def _parse_sheet(ws):
-    """Parse a single worksheet using the Master Format layout. Returns dict with
-    year/month/rows/keterangan, or raises ValueError if the sheet doesn't look like one."""
     year, month = _parse_period(ws)
     if not year or not month:
         raise ValueError(
@@ -131,19 +171,24 @@ def _parse_sheet(ws):
         )
 
     days_in_month = monthrange(year, month)[1]
+    is_new = _is_new_format(ws)
+    stride = 2 if is_new else 1
+
     rows = []
     keterangan = {}
     details = []
 
     for lab_id, _, lab_name in LABS:
-        r = _find_lab_row(ws, lab_id, lab_name)
-        if r is None:
+        data_row = _find_lab_data_row(ws, lab_id, lab_name, stride)
+        if data_row is None:
             continue
+        keg_row = data_row + 1 if is_new else None
+
         for d in range(1, days_in_month + 1):
             base_col = 6 + (d - 1) * 3  # F=6 -> day 1
-            fr_v = ws.cell(row=r, column=base_col).value
-            jlh_v = ws.cell(row=r, column=base_col + 1).value
-            drs_v = ws.cell(row=r, column=base_col + 2).value
+            fr_v = ws.cell(row=data_row, column=base_col).value
+            jlh_v = ws.cell(row=data_row, column=base_col + 1).value
+            drs_v = ws.cell(row=data_row, column=base_col + 2).value
             fr = int(fr_v) if isinstance(fr_v, (int, float)) and fr_v is not None else 0
             jlh = int(jlh_v) if isinstance(jlh_v, (int, float)) and jlh_v is not None else 0
             try:
@@ -153,17 +198,32 @@ def _parse_sheet(ws):
             if fr or jlh or drs:
                 rows.append({"lab_id": lab_id, "day": d, "fr": fr, "jlh": jlh, "drs": drs})
 
+            # NEW format: pull Kegiatan text for this specific date from keg_row
+            if is_new:
+                keg_text = _read_kegiatan_new(ws, keg_row, base_col)
+                if keg_text:
+                    users, activity = _split_users_activity(keg_text)
+                    details.append({
+                        "lab_id": lab_id,
+                        "day": d,
+                        "users": users,
+                        "activity": activity,
+                    })
+
+        # KETERANGAN column at the end — used in both layouts as a free-text note.
         ket_col = 6 + days_in_month * 3
-        ket = ws.cell(row=r, column=ket_col).value
+        ket = ws.cell(row=data_row, column=ket_col).value
         if ket and str(ket).strip():
-            parsed_details, leftover = parse_detail_lines(ket, year, month)
-            for item in parsed_details:
-                details.append({"lab_id": lab_id, **item})
-            # Only what didn't parse as a date-specific line is kept as the
-            # whole-month note. Empty leftover -> drop the note entirely.
-            residual = "\n".join(leftover).strip()
-            if residual:
-                keterangan[lab_id] = residual
+            if is_new:
+                # Whole-month note only; no dd/mm parsing needed.
+                keterangan[lab_id] = str(ket).strip()
+            else:
+                parsed_details, leftover = parse_detail_lines(ket, year, month)
+                for item in parsed_details:
+                    details.append({"lab_id": lab_id, **item})
+                residual = "\n".join(leftover).strip()
+                if residual:
+                    keterangan[lab_id] = residual
 
     return {
         "year": year, "month": month,
@@ -173,18 +233,12 @@ def _parse_sheet(ws):
 
 
 def parse_master_format(path):
-    """Single-sheet parse: picks the sheet that looks like Master Format, raises on failure."""
     wb = openpyxl.load_workbook(path, data_only=True)
     ws = _find_sheet(wb)
     return _parse_sheet(ws)
 
 
 def parse_all_sheets(path):
-    """Iterate every worksheet (left-to-right). Return a list with one entry per sheet:
-        {sheet, ok, [year, month, rows, keterangan] or [error]}.
-    Sheets that don't look like Master Format are reported as skipped, not fatal —
-    so a workbook with a cover sheet + 12 month tabs is fine.
-    """
     wb = openpyxl.load_workbook(path, data_only=True)
     results = []
     for name in wb.sheetnames:
