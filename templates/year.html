@@ -121,14 +121,16 @@
           </td>
           {% for m in range(1, 13) %}
             {% set cell = lab.months[m] %}
-            <td class="text-center {{ 'cell-active' if cell.drs else 'cell-empty' }}"
-                {% if cell.drs %}
+            {% set is_retired = cell.retired %}
+            <td class="text-center {% if is_retired %}cell-retired{% elif cell.drs %}cell-active{% else %}cell-empty{% endif %}"
+                {% if is_retired %}title="Sarana tidak aktif — {{ months[m] }} {{ year }}"{% endif %}
+                {% if cell.drs and not is_retired %}
                   data-lab-id="{{ lab.id }}" data-month="{{ m }}" data-year="{{ year }}"
                   role="button" tabindex="0"
                   title="FR {{ cell.fr }} / JP {{ cell.jlh }} / DRS {{ '%.1f' % cell.drs }} jam{% if cell.photos %} &mdash; {{ cell.photos }} foto{% endif %}"
                 {% endif %}>
-              {{ '%.0f' % cell.drs if cell.drs else '' }}
-              {% if cell.photos %}<span class="photo-dot">&#128247;</span>{% endif %}
+              {% if is_retired %}&mdash;{% else %}{{ '%.0f' % cell.drs if cell.drs else '' }}{% endif %}
+              {% if cell.photos and not is_retired %}<span class="photo-dot">&#128247;</span>{% endif %}
             </td>
           {% endfor %}
           <td class="text-end fw-bold">{{ '%.1f' % lab.drs_total }}</td>
