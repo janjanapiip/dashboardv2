@@ -367,50 +367,68 @@ td.activity-cell[role="button"]:hover { outline: 2px solid #f1c40f; outline-offs
 .dropzone .dropzone-hint { pointer-events: none; }
 .dropzone input[type="file"] { background: #fff; }
 
-/* ---------- Instagram feed ---------- */
-.ig-feed-scroll {
-  display: flex;
-  gap: 1rem;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: .5rem;
+/* ---------- Quick-link cards ---------- */
+.quick-link-card {
+  position: relative;
+  border-radius: .5rem;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--spp-border);
+  transition: transform .2s, box-shadow .2s;
 }
-.ig-feed-item {
-  flex: 0 0 auto;
-  width: 340px;
-  min-width: 280px;
-  scroll-snap-align: start;
-}
-/* hide scrollbar on desktop, keep scroll functional */
-.ig-feed-scroll::-webkit-scrollbar { height: 6px; }
-.ig-feed-scroll::-webkit-scrollbar-thumb { background: var(--spp-border); border-radius: 3px; }
-@media (max-width: 576px) {
-  .ig-feed-item { width: 90vw; }
-}
-
-/* ---------- Link cards ---------- */
-.link-card {
-  transition: transform .15s, box-shadow .15s;
-  cursor: pointer;
-  color: var(--spp-text);
-}
-.link-card:hover {
+.quick-link-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 .5rem 1rem rgba(0,0,0,.1);
+  box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.12);
+}
+.ql-accent {
+  height: 5px;
+  width: 100%;
+}
+.ql-body {
+  display: flex;
+  align-items: center;
+  gap: .875rem;
+  padding: 1rem 1.125rem;
+}
+.ql-icon {
+  flex-shrink: 0;
+  width: 48px; height: 48px;
+  border-radius: .625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: inherit;
+}
+/* inherit gradient from accent via JS-free trick: repeat on icon bg */
+.quick-link-card:nth-child(1) .ql-icon,
+.col-md-4:nth-child(1) .ql-icon { background: linear-gradient(135deg,#1565c0,#42a5f5); }
+.quick-link-card:nth-child(2) .ql-icon,
+.col-md-4:nth-child(2) .ql-icon { background: linear-gradient(135deg,#2e7d32,#66bb6a); }
+.quick-link-card:nth-child(3) .ql-icon,
+.col-md-4:nth-child(3) .ql-icon { background: linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045); }
+.ql-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.ql-title {
+  font-weight: 600;
+  font-size: .925rem;
+  color: var(--spp-text);
+  line-height: 1.3;
+}
+.ql-sub {
+  font-size: .78rem;
+  color: #6c757d;
+  margin-top: .125rem;
+}
+.ql-arrow {
+  flex-shrink: 0;
+  color: #adb5bd;
+  transition: transform .2s, color .2s;
+}
+.quick-link-card:hover .ql-arrow {
+  transform: translateX(3px);
   color: var(--spp-primary);
-}
-.link-card-icon { opacity: .85; }
-.link-card:hover .link-card-icon { opacity: 1; }
-
-/* ---------- IG carousel controls ---------- */
-#igCarousel .carousel-control-prev-icon,
-#igCarousel .carousel-control-next-icon {
-  background-color: rgba(0,0,0,.35);
-  border-radius: 50%;
-  padding: 1rem;
-  background-size: 50%;
-}
-#igCarousel .carousel-indicators [data-bs-target] {
-  background-color: var(--spp-primary);
 }
