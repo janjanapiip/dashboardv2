@@ -388,3 +388,29 @@ td.activity-cell[role="button"]:hover { outline: 2px solid #f1c40f; outline-offs
 @media (max-width: 576px) {
   .ig-feed-item { width: 90vw; }
 }
+
+/* ---------- Link cards ---------- */
+.link-card {
+  transition: transform .15s, box-shadow .15s;
+  cursor: pointer;
+  color: var(--spp-text);
+}
+.link-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 .5rem 1rem rgba(0,0,0,.1);
+  color: var(--spp-primary);
+}
+.link-card-icon { opacity: .85; }
+.link-card:hover .link-card-icon { opacity: 1; }
+
+/* ---------- IG carousel controls ---------- */
+#igCarousel .carousel-control-prev-icon,
+#igCarousel .carousel-control-next-icon {
+  background-color: rgba(0,0,0,.35);
+  border-radius: 50%;
+  padding: 1rem;
+  background-size: 50%;
+}
+#igCarousel .carousel-indicators [data-bs-target] {
+  background-color: var(--spp-primary);
+}

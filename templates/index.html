@@ -2,30 +2,99 @@
 {% block title %}Dashboard &mdash; {{ month_name }} {{ year }}{% endblock %}
 {% block content %}
 
-{# ---------- Instagram feed: Berita Terbaru STIP ---------- #}
-{% if ig_posts %}
-<div class="card mb-3"><div class="card-body">
-  <h6 class="card-title d-flex align-items-center gap-2">
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#E1306C" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12s.014 3.668.072 4.948c.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24s3.668-.014 4.948-.072c4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948s-.014-3.667-.072-4.947c-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-    Berita Terbaru STIP
-  </h6>
-  <p class="small text-muted mb-2">
-    Postingan terbaru dari
-    <a href="https://www.instagram.com/stip.indonesia/" target="_blank" rel="noopener">@stip.indonesia</a>
-  </p>
-  <div class="ig-feed-scroll">
-    {% for url in ig_posts %}
-    <div class="ig-feed-item">
-      <blockquote class="instagram-media" data-instgrm-captioned
-                  data-instgrm-permalink="{{ url }}"
-                  style="width:100%; min-width:280px; max-width:340px; margin:0; padding:0; border:0;">
-      </blockquote>
-    </div>
-    {% endfor %}
+{# ---------- Berita & Tautan Penting ---------- #}
+<div class="row g-3 mb-3">
+  {# -- col 1: Instagram @stip.indonesia carousel -- #}
+  {% if ig_posts %}
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-body d-flex flex-column">
+      <h6 class="card-title d-flex align-items-center gap-2 mb-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#E1306C" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12s.014 3.668.072 4.948c.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24s3.668-.014 4.948-.072c4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948s-.014-3.667-.072-4.947c-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+        <a href="https://www.instagram.com/stip.indonesia/" target="_blank" rel="noopener" class="text-decoration-none text-dark">@stip.indonesia</a>
+      </h6>
+      <div id="igCarousel" class="carousel slide flex-grow-1" data-bs-ride="carousel" data-bs-interval="6000">
+        <div class="carousel-indicators">
+          {% for url in ig_posts %}
+          <button type="button" data-bs-target="#igCarousel" data-bs-slide-to="{{ loop.index0 }}"
+                  {% if loop.first %}class="active" aria-current="true"{% endif %}
+                  aria-label="Post {{ loop.index }}"></button>
+          {% endfor %}
+        </div>
+        <div class="carousel-inner">
+          {% for url in ig_posts %}
+          <div class="carousel-item {% if loop.first %}active{% endif %}">
+            <div class="d-flex justify-content-center">
+              <blockquote class="instagram-media" data-instgrm-captioned
+                          data-instgrm-permalink="{{ url }}"
+                          style="width:100%; max-width:400px; margin:0; padding:0; border:0;">
+              </blockquote>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#igCarousel" data-bs-slide="prev">
+          <span class="carousel-control-prev-icon" aria-hidden="true"></span><span class="visually-hidden">Sebelumnya</span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#igCarousel" data-bs-slide="next">
+          <span class="carousel-control-next-icon" aria-hidden="true"></span><span class="visually-hidden">Berikutnya</span>
+        </button>
+      </div>
+    </div></div>
   </div>
-  <script async src="//www.instagram.com/embed.js"></script>
-</div></div>
-{% endif %}
+  {% endif %}
+
+  {# -- col 2: quick links + @bpsdmp151 -- #}
+  <div class="col-lg-6">
+    <div class="row g-3 h-100">
+      {# Diklat Pelaut #}
+      <div class="col-sm-6">
+        <a href="https://diklatpelaut.stipjakarta.ac.id/peserta-login" target="_blank" rel="noopener"
+           class="card link-card h-100 text-decoration-none">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-4">
+            <div class="link-card-icon mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="var(--spp-primary)" viewBox="0 0 16 16"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2M5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1"/></svg>
+            </div>
+            <h6 class="card-title mb-1">Diklat Pelaut</h6>
+            <small class="text-muted">Login Peserta STIP Jakarta</small>
+          </div>
+        </a>
+      </div>
+      {# BPSDM Perhubungan #}
+      <div class="col-sm-6">
+        <a href="https://bpsdm.kemenhub.go.id/" target="_blank" rel="noopener"
+           class="card link-card h-100 text-decoration-none">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center text-center py-4">
+            <div class="link-card-icon mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="var(--spp-primary)" viewBox="0 0 16 16"><path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708z"/></svg>
+            </div>
+            <h6 class="card-title mb-1">BPSDM Perhubungan</h6>
+            <small class="text-muted">Kementerian Perhubungan RI</small>
+          </div>
+        </a>
+      </div>
+      {# @bpsdmp151 Instagram #}
+      <div class="col-12">
+        <div class="card h-100"><div class="card-body">
+          <h6 class="card-title d-flex align-items-center gap-2 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#E1306C" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12s.014 3.668.072 4.948c.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24s3.668-.014 4.948-.072c4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948s-.014-3.667-.072-4.947c-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+            <a href="https://www.instagram.com/bpsdmp151/" target="_blank" rel="noopener" class="text-decoration-none text-dark">@bpsdmp151</a>
+          </h6>
+          <div class="ig-feed-scroll">
+            {% for url in ig_posts_bpsdm %}
+            <div class="ig-feed-item">
+              <blockquote class="instagram-media" data-instgrm-captioned
+                          data-instgrm-permalink="{{ url }}"
+                          style="width:100%; min-width:260px; max-width:300px; margin:0; padding:0; border:0;">
+              </blockquote>
+            </div>
+            {% endfor %}
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script async src="//www.instagram.com/embed.js"></script>
 
 <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
   <h4 class="mb-0 me-3">Rekapitulasi Utilisasi &mdash; {{ month_name }} {{ year }}</h4>

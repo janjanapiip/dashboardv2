@@ -46,15 +46,16 @@ ALLOWED_IMG = {"png", "jpg", "jpeg", "webp"}
 ALLOWED_XLSX = {"xlsx", "xlsm"}
 
 IG_POSTS_FILE = DATA_DIR / "instagram_posts.json"
+IG_POSTS_BPSDM_FILE = DATA_DIR / "instagram_posts_bpsdm.json"
 
-def _load_ig_posts() -> list[str]:
+def _load_ig_posts(path=IG_POSTS_FILE) -> list[str]:
     """Load Instagram post URLs, filtering out placeholders."""
-    if not IG_POSTS_FILE.exists():
+    if not path.exists():
         return []
     try:
-        data = _json.loads(IG_POSTS_FILE.read_text("utf-8"))
+        data = _json.loads(path.read_text("utf-8"))
         return [u for u in data.get("posts", [])
-                if u and "PASTE_" not in u and ("/p/" in u or "/reel/" in u)]
+                if u and "PLACEHOLDER" not in u and "PASTE_" not in u and ("/p/" in u or "/reel/" in u)]
     except Exception:
         return []
 MAX_IMAGE_BYTES = 2 * 1024 * 1024     # 2 MB per foto kegiatan
@@ -459,6 +460,7 @@ def index():
         periods=periods, months=MONTHS_ID,
         retired_labs=retired,
         ig_posts=_load_ig_posts(),
+        ig_posts_bpsdm=_load_ig_posts(IG_POSTS_BPSDM_FILE),
     )
 
 
