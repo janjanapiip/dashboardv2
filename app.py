@@ -19,6 +19,7 @@ from werkzeug.utils import secure_filename
 import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
 
+import json as _json
 from db import init_db, get_conn, DATA_DIR, DB_PATH
 from labs import (
     LABS,
@@ -43,6 +44,19 @@ UPLOAD_DIR = DATA_DIR / "uploads" / "photos"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_IMG = {"png", "jpg", "jpeg", "webp"}
 ALLOWED_XLSX = {"xlsx", "xlsm"}
+
+IG_POSTS_FILE = DATA_DIR / "instagram_posts.json"
+
+def _load_ig_posts() -> list[str]:
+    """Load Instagram post URLs, filtering out placeholders."""
+    if not IG_POSTS_FILE.exists():
+        return []
+    try:
+        data = _json.loads(IG_POSTS_FILE.read_text("utf-8"))
+        return [u for u in data.get("posts", [])
+                if u and "PASTE_" not in u and ("/p/" in u or "/reel/" in u)]
+    except Exception:
+        return []
 MAX_IMAGE_BYTES = 2 * 1024 * 1024     # 2 MB per foto kegiatan
 MAX_XLSX_BYTES  = 25 * 1024 * 1024    # 25 MB untuk file Excel Master Format
 # PIL formats that map to the allowed extensions above
@@ -444,6 +458,7 @@ def index():
         month_name=MONTHS_ID.get(month, ""),
         periods=periods, months=MONTHS_ID,
         retired_labs=retired,
+        ig_posts=_load_ig_posts(),
     )
 
 

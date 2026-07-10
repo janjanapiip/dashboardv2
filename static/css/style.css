@@ -366,3 +366,25 @@ td.activity-cell[role="button"]:hover { outline: 2px solid #f1c40f; outline-offs
 }
 .dropzone .dropzone-hint { pointer-events: none; }
 .dropzone input[type="file"] { background: #fff; }
+
+/* ---------- Instagram feed ---------- */
+.ig-feed-scroll {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: .5rem;
+}
+.ig-feed-item {
+  flex: 0 0 auto;
+  width: 340px;
+  min-width: 280px;
+  scroll-snap-align: start;
+}
+/* hide scrollbar on desktop, keep scroll functional */
+.ig-feed-scroll::-webkit-scrollbar { height: 6px; }
+.ig-feed-scroll::-webkit-scrollbar-thumb { background: var(--spp-border); border-radius: 3px; }
+@media (max-width: 576px) {
+  .ig-feed-item { width: 90vw; }
+}
