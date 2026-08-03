@@ -304,5 +304,5 @@ const PHOTOS_MAP = {{ photos_map | tojson }};
 const DETAILS_MAP = {{ details_map | tojson }};
 const PHOTO_BASE = "{{ url_for('serve_photo', filename='') }}";
 </script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v={{ asset_ver }}"></script>
 {% endblock %}

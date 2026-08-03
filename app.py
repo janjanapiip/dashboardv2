@@ -158,6 +158,15 @@ STATIC_EXPORT = os.environ.get("SPP_STATIC_EXPORT") == "1"
 @app.context_processor
 def inject_clock_context():
     t = today_wib()
+    # asset_ver: newest mtime of critical static files → auto cache-busts on deploy
+    try:
+        static_dir = Path(__file__).parent / "static"
+        asset_ver = int(max(
+            (static_dir / "js" / "dashboard.js").stat().st_mtime,
+            (static_dir / "css" / "style.css").stat().st_mtime,
+        ))
+    except OSError:
+        asset_ver = int(t.timestamp())
     return {
         "today_iso": t.isoformat(),
         "today_year": t.year,
@@ -169,6 +178,7 @@ def inject_clock_context():
         "static_export": STATIC_EXPORT,
         "retired_lab_codes": set(RETIRED_LABS.keys()),
         "retired_lab_meta": RETIRED_LABS,
+        "asset_ver": asset_ver,
     }
 
 
