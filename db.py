@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS detail (
     month    INTEGER NOT NULL,
     day      INTEGER NOT NULL,
     users    TEXT NOT NULL DEFAULT '',
+    jabatan  TEXT NOT NULL DEFAULT '',
     activity TEXT NOT NULL DEFAULT ''
 );
 
@@ -86,6 +87,10 @@ def init_db(default_admin_user="admin", default_admin_pw="admin"):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        # Migration: add jabatan column to existing detail tables (schema evolved after v3).
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(detail)")}
+        if "jabatan" not in cols:
+            conn.execute("ALTER TABLE detail ADD COLUMN jabatan TEXT NOT NULL DEFAULT ''")
         for lab_id, code, name in LABS:
             conn.execute(
                 "INSERT INTO lab (id, code, name) VALUES (?,?,?) "

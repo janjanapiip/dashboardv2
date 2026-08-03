@@ -244,7 +244,7 @@ def period_summary(year, month):
             (f"{year}-{month:02d}-%",),
         ).fetchall()
         detail_rows = conn.execute(
-            "SELECT lab_id, day, users, activity FROM detail "
+            "SELECT lab_id, day, users, jabatan, activity FROM detail "
             "WHERE year=? AND month=? ORDER BY lab_id, day, id",
             (year, month),
         ).fetchall()
@@ -297,6 +297,7 @@ def period_summary(year, month):
     for dr in detail_rows:
         details_map.setdefault(dr["lab_id"], {}).setdefault(dr["day"], []).append({
             "users": dr["users"] or "",
+            "jabatan": dr["jabatan"] or "",
             "activity": dr["activity"] or "",
         })
 
@@ -829,9 +830,10 @@ def admin_import():
                 )
             for d in parsed.get("details", []):
                 conn.execute(
-                    "INSERT INTO detail (lab_id, year, month, day, users, activity) "
-                    "VALUES (?,?,?,?,?,?)",
-                    (d["lab_id"], year, month, d["day"], d["users"], d["activity"]),
+                    "INSERT INTO detail (lab_id, year, month, day, users, jabatan, activity) "
+                    "VALUES (?,?,?,?,?,?,?)",
+                    (d["lab_id"], year, month, d["day"],
+                     d.get("users", ""), d.get("jabatan", ""), d.get("activity", "")),
                 )
                 details_added += 1
 

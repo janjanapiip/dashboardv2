@@ -67,20 +67,31 @@ def parse_detail_lines(text, sheet_year: int, sheet_month: int):
         details.append({
             "day": day,
             "users": users.strip(),
+            "jabatan": "",
             "activity": activity.strip(),
         })
     return details, leftover
 
 
 def _split_users_activity(text: str):
-    """New-format Kegiatan cell may still use 'users : activity' — try to split."""
+    """Parse Kegiatan cell into (users, jabatan, activity).
+
+    NEW format (semicolon-separated): "Kelas/Pengguna; Jabatan; Isi kegiatan"
+    Legacy fallback: "users : activity" (single colon).
+    Plain text with no separator → all goes into activity.
+    """
     if not text:
-        return "", ""
+        return "", "", ""
     s = str(text).strip()
+    if ";" in s:
+        parts = [p.strip() for p in s.split(";", 2)]
+        while len(parts) < 3:
+            parts.append("")
+        return parts[0], parts[1], parts[2]
     if ":" in s:
         users, activity = s.split(":", 1)
-        return users.strip(), activity.strip()
-    return "", s
+        return users.strip(), "", activity.strip()
+    return "", "", s
 
 
 def _normalize(s: str) -> str:
@@ -209,11 +220,12 @@ def _parse_sheet(ws):
             if is_new:
                 keg_text = _read_kegiatan_new(ws, keg_row, base_col)
                 if keg_text:
-                    users, activity = _split_users_activity(keg_text)
+                    users, jabatan, activity = _split_users_activity(keg_text)
                     details.append({
                         "lab_id": lab_id,
                         "day": d,
                         "users": users,
+                        "jabatan": jabatan,
                         "activity": activity,
                     })
 

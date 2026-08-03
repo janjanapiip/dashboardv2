@@ -99,11 +99,13 @@
     if (detailWrap && detailList_el) {
       if (detailList.length) {
         detailList_el.innerHTML = detailList.map(d => {
-          const who = escapeHtml(d.users || '—');  // em-dash if empty
+          const who = escapeHtml(d.users || '—');
+          const jab = escapeHtml(d.jabatan || '—');
           const what = escapeHtml(d.activity || '—');
           return (
             `<li class="detail-row">` +
               `<div><span class="detail-label">Pengguna:</span> <span class="detail-value">${who}</span></div>` +
+              `<div><span class="detail-label">Jabatan:</span> <span class="detail-value">${jab}</span></div>` +
               `<div><span class="detail-label">Kegiatan:</span> <span class="detail-value">${what}</span></div>` +
             `</li>`
           );

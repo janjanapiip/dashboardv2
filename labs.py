@@ -12,6 +12,7 @@ LABS = [
     (11, "ERGL",  "ENGINE ROOM GRAPHICS LABORATORY (ERGL)"),
     (12, "LTL",   "LANGUAGE TRAINING LABORATORY (LTL)"),
     (13, "ACSL",  "AUTOMATIC CONTROL SYSTEM LABORATORY (ACSL)"),
+    (14, "LAI",   "LAIN-LAIN (ROOFTOP LANTAI 3, SELASAR, DLL)"),
 ]
 
 # Sarana yang dinonaktifkan mulai periode tertentu. Format: code -> (year, month)
@@ -63,6 +64,7 @@ LAB_DESCRIPTIONS = {
     "ERGL": "Engine Room Graphics Laboratory: visualisasi sistem permesinan kapal berbasis grafis.",
     "LTL":  "Language Training Laboratory: pelatihan Maritime English untuk komunikasi pelayaran.",
     "ACSL": "Automatic Control System Laboratory: praktik sistem kontrol otomatis dan instrumentasi kapal.",
+    "LAI":  "Lain-lain: penggunaan area di luar laboratorium formal (rooftop lantai 3, selasar, ruang lain).",
 }
 
 # Penjelasan singkatan kolom yang muncul di tabel / dashboard
