@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Tinjau Batch Foto{% endblock %}
+{% block content %}
+{% set status_label = {
+  'auto': ('success', 'Otomatis: 1 lab aktif'),
+  'ambiguous': ('warning', 'Beberapa lab aktif — pilih lab'),
+  'no_activity': ('secondary', 'Tidak ada aktivitas — Umum'),
+  'no_date': ('danger', 'Tanggal tidak terbaca — isi tanggal'),
+} %}
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+  <h4 class="mb-0 me-2">Tinjau Batch Foto</h4>
+  <span class="badge bg-success">{{ counts.auto }} otomatis</span>
+  <span class="badge bg-warning text-dark">{{ counts.ambiguous }} perlu pilih lab</span>
+  <span class="badge bg-secondary">{{ counts.no_activity }} Umum</span>
+  {% if counts.no_date %}<span class="badge bg-danger">{{ counts.no_date }} tanpa tanggal</span>{% endif %}
+  {% if counts.error %}<span class="badge bg-dark">{{ counts.error }} ditolak</span>{% endif %}
+</div>
+<p class="small text-muted mb-2">
+  Belum ada yang disimpan. Periksa tiap foto: lab yang disarankan berasal dari
+  data utilisasi pada tanggal di nama berkas. Foto dengan beberapa lab aktif
+  disimpan sebagai <i>Umum</i> kecuali Anda memilih labnya. Hanya lab yang
+  aktif pada tanggal itu yang dapat dipilih (aturan sama dengan unggah satuan).
+</p>
+{% if skipped %}<div class="alert alert-light py-1 small mb-2">{{ skipped }} berkas bukan foto (video, dokumen, dll.) dilewati.</div>{% endif %}
+{% if overflow %}<div class="alert alert-warning py-1 small mb-2">Batch dibatasi {{ max_files }} foto; sisanya belum dibaca — unggah sebagai batch berikutnya.</div>{% endif %}
+
+<form method="post" action="{{ url_for('admin_photo_batch_commit', token=token) }}" id="batchCommit">
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+  <thead><tr>
+    <th style="width:2rem"><input type="checkbox" class="form-check-input" id="checkAll" checked aria-label="Pilih semua"></th>
+    <th>Foto</th><th>Tanggal</th><th>Laboratorium</th><th>Caption</th><th>Status</th>
+  </tr></thead>
+  <tbody>
+  {% for it in items %}
+    {% if it.error %}
+    <tr class="table-light text-muted">
+      <td></td>
+      <td class="small text-break" colspan="4">{{ it.name }}</td>
+      <td class="small text-danger">{{ it.error }}</td>
+    </tr>
+    {% else %}
+    {% set cand_ids = it.candidates|map(attribute='id')|list %}
+    <tr data-idx="{{ it.idx }}">
+      <td><input type="checkbox" class="form-check-input js-include" name="include_{{ it.idx }}" value="1" checked
+                 aria-label="Simpan {{ it.name }}"></td>
+      <td style="min-width:160px">
+        <a href="{{ url_for('admin_photo_batch_img', token=token, idx=it.idx) }}" target="_blank">
+          <img src="{{ url_for('admin_photo_batch_img', token=token, idx=it.idx) }}" alt="{{ it.name }}"
+               loading="lazy" style="width:120px;height:80px;object-fit:cover" class="rounded">
+        </a>
+        <div class="small text-muted text-break" style="max-width:220px">{{ it.name }}</div>
+      </td>
+      <td style="min-width:150px">
+        <input type="date" class="form-control form-control-sm" name="date_{{ it.idx }}"
+               value="{{ it.date }}" max="{{ today_iso }}" aria-label="Tanggal kegiatan">
+        {% if it.time %}<div class="small text-muted">pukul {{ it.time }}</div>{% endif %}
+      </td>
+      <td style="min-width:200px">
+        <select class="form-select form-select-sm js-lab" name="lab_{{ it.idx }}" aria-label="Laboratorium">
+          <option value="">— Umum / tidak spesifik —</option>
+          {% for c in it.candidates %}
+            <option value="{{ c.id }}" data-caption="{{ c.caption }}" {% if c.id == it.lab_id %}selected{% endif %}>{{ c.code }} — {{ c.name }}</option>
+          {% endfor %}
+        </select>
+        {% if it.status == 'no_date' %}<div class="small text-muted">Isi tanggal dulu; lab dapat diatur nanti dari Galeri.</div>{% endif %}
+      </td>
+      <td style="min-width:200px">
+        <input type="text" class="form-control form-control-sm js-caption" name="caption_{{ it.idx }}"
+               maxlength="200" value="{{ it.caption or '' }}" aria-label="Caption">
+      </td>
+      <td class="small">
+        {% set s = status_label[it.status] %}
+        <span class="badge bg-{{ s[0] }}{% if s[0] == 'warning' %} text-dark{% endif %}">{{ s[1] }}</span>
+        {% if it.status == 'ambiguous' %}
+          <div class="text-muted mt-1">{% for c in it.candidates %}<div><b>{{ c.code }}</b>{% if c.caption %}: {{ c.caption }}{% endif %}</div>{% endfor %}</div>
+        {% endif %}
+      </td>
+    </tr>
+    {% endif %}
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div class="d-flex gap-2 sticky-bottom bg-white py-2 border-top">
+  <button class="btn btn-primary">Simpan foto terpilih</button>
+  <span class="small text-muted align-self-center" id="selCount"></span>
+</div>
+</form>
+<form method="post" action="{{ url_for('admin_photo_batch_cancel', token=token) }}" class="mt-2"
+      onsubmit="return confirm('Batalkan batch ini? Foto di batch tidak akan disimpan.')">
+  <button class="btn btn-outline-danger btn-sm">Batalkan batch</button>
+</form>
+
+<script>
+(() => {
+  const boxes = [...document.querySelectorAll('.js-include')];
+  const all = document.getElementById('checkAll');
+  const sel = document.getElementById('selCount');
+  const upd = () => { sel.textContent = `${boxes.filter(b => b.checked).length} dari ${boxes.length} foto dipilih.`; };
+  all.addEventListener('change', () => { boxes.forEach(b => { b.checked = all.checked; }); upd(); });
+  boxes.forEach(b => b.addEventListener('change', upd));
+  upd();
+  // Picking a lab fills an empty caption with that day's recorded activity.
+  document.querySelectorAll('.js-lab').forEach(s => s.addEventListener('change', () => {
+    const cap = s.closest('tr').querySelector('.js-caption');
+    const opt = s.selectedOptions[0];
+    if (cap && !cap.value && opt && opt.dataset.caption) cap.value = opt.dataset.caption;
+  }));
+  // Date edited away from the parsed one: lab list is stale, force Umum (server re-checks anyway).
+  document.querySelectorAll('input[type=date]').forEach(d => {
+    const orig = d.value;
+    d.addEventListener('change', () => {
+      const s = d.closest('tr').querySelector('.js-lab');
+      if (d.value !== orig) { s.value = ''; s.disabled = true; s.title = 'Tanggal diubah: atur lab dari Galeri setelah disimpan.'; }
+      else { s.disabled = false; s.title = ''; }
+    });
+  });
+})();
+</script>
+{% endblock %}

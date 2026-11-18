@@ -17,6 +17,8 @@
       <a class="btn btn-outline-primary btn-sm" href="/year-{{ year }}.html">Rekap Setahun</a>
       <a class="btn btn-outline-primary btn-sm"
          href="/export/Rekap_Utilisasi_{{ year }}-{{ '%02d' % month }}.xlsx">Unduh Excel</a>
+      <a class="btn btn-outline-primary btn-sm"
+         href="/export/Laporan_Utilisasi_{{ year }}-{{ '%02d' % month }}.pdf">Unduh PDF</a>
     </div>
   {% else %}
     <form class="d-flex gap-2 ms-auto" method="get">
@@ -29,6 +31,7 @@
       <button class="btn btn-primary btn-sm">Lihat</button>
       <a class="btn btn-outline-primary btn-sm" href="{{ url_for('year_view', year=year) }}">Rekap Setahun</a>
       <a class="btn btn-outline-primary btn-sm" href="{{ url_for('export_excel', year=year, month=month) }}">Unduh Excel</a>
+      <a class="btn btn-outline-primary btn-sm" href="{{ url_for('export_pdf_month', year=year, month=month) }}">Unduh PDF</a>
     </form>
   {% endif %}
 </div>

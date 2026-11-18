@@ -23,7 +23,7 @@
         </a>
         <div class="card-body p-2">
           <div class="small fw-bold">{{ p.event_date }}</div>
-          {% if p.lab_code %}<div class="small text-primary">{{ p.lab_code }}</div>{% endif %}
+          {% if p.lab_code %}<div class="small text-primary">{{ p.lab_code }}</div>{% else %}<div class="small text-muted">Umum</div>{% endif %}
           {% if p.caption %}<div class="small">{{ p.caption }}</div>{% endif %}
         </div>
         {% if current_user.is_authenticated %}

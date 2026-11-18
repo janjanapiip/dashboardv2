@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import secrets
+import shutil
 import ipaddress
 from calendar import monthrange, weekday
 from pathlib import Path
@@ -33,6 +34,8 @@ from labs import (
 from excel_import import parse_master_format, parse_all_sheets
 import holidays as holidays_mod
 import backup as backup_mod
+import photo_batch
+import report_pdf
 
 WIB = timezone(timedelta(hours=7))  # Asia/Jakarta, fixed offset (no DST)
 
@@ -60,6 +63,9 @@ def _load_ig_posts(path=IG_POSTS_FILE) -> list[str]:
         return []
 MAX_IMAGE_BYTES = 2 * 1024 * 1024     # 2 MB per foto kegiatan
 MAX_XLSX_BYTES  = 25 * 1024 * 1024    # 25 MB untuk file Excel Master Format
+MAX_BATCH_BYTES = 300 * 1024 * 1024   # 300 MB per unggahan batch foto (folder / ZIP)
+MAX_BATCH_FILES = 500                 # foto per batch; sisanya ditolak, unggah batch berikutnya
+BATCH_STAGING_DIR = DATA_DIR / "photo_batch_staging"  # outside uploads/photos: never exported
 # PIL formats that map to the allowed extensions above
 ALLOWED_PIL_FORMATS = {"PNG", "JPEG", "WEBP"}
 
@@ -73,6 +79,7 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_XLSX_BYTES + 1024 * 1024
 def idn(v, dec=0):
     """Indonesian number format: 2286 -> '2.286', 198.0 (dec=1) -> '198,0'."""
     return f"{v:,.{dec}f}".translate(str.maketrans(",.", ".,"))
+
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -142,6 +149,10 @@ def lan_only_writes():
 
 @app.errorhandler(413)
 def too_large(_e):
+    if request.path.startswith("/admin/photo/batch"):
+        flash(f"Batch foto terlalu besar (batas {MAX_BATCH_BYTES // (1024*1024)} MB per unggahan, "
+              f"maks {MAX_BATCH_FILES} foto). Bagi menjadi beberapa batch, misalnya per bulan.", "error")
+        return redirect(url_for("admin") + "#tab-photo"), 303
     flash(
         f"Berkas terlalu besar (batas {MAX_XLSX_BYTES // (1024*1024)} MB total). "
         f"Untuk foto kegiatan batasnya {MAX_IMAGE_BYTES // (1024*1024)} MB per foto.",
@@ -631,6 +642,7 @@ def admin():
         labs=summary, days=days, year=year, month=month,
         day_meta=day_meta, holiday_count=holiday_count,
         month_name=MONTHS_ID.get(month, ""), months=MONTHS_ID,
+        max_batch_files=MAX_BATCH_FILES, max_batch_mb=MAX_BATCH_BYTES // (1024 * 1024),
         periods=available_periods(),
         retired_labs=retired_in_period(year, month),
     )
@@ -1024,6 +1036,242 @@ def admin_sync_holidays():
     return redirect(request.referrer or url_for("admin"))
 
 
+# ---------------- batch photo import (folder / ZIP) ----------------
+# Flow: upload -> validate + stage to data/photo_batch_staging/<token>/ ->
+# admin reviews/adjusts lab per photo -> commit copies into uploads/photos.
+# Nothing touches the photo table or uploads/ until the admin confirms.
+
+def _labs_active_on(conn, d: date) -> list[dict]:
+    """Labs with recorded utilisation (FR/JLH/DRS > 0) on a date, + detail text for captions."""
+    rows = conn.execute(
+        "SELECT l.id, l.code, l.name FROM entry e JOIN lab l ON l.id = e.lab_id "
+        "WHERE e.year=? AND e.month=? AND e.day=? AND (e.fr>0 OR e.jlh>0 OR e.drs>0) "
+        "ORDER BY l.id",
+        (d.year, d.month, d.day),
+    ).fetchall()
+    out = []
+    for r in rows:
+        det = conn.execute(
+            "SELECT users, activity FROM detail WHERE lab_id=? AND year=? AND month=? AND day=? "
+            "ORDER BY id",
+            (r["id"], d.year, d.month, d.day),
+        ).fetchall()
+        caption = "; ".join(
+            " — ".join(p for p in (x["users"].strip(), x["activity"].strip()) if p) for x in det
+        ).strip("; ")[:200]
+        out.append({"id": r["id"], "code": r["code"], "name": r["name"], "caption": caption})
+    return out
+
+
+def _existing_photo_hashes() -> set[str]:
+    # ponytail: re-hashes uploads/photos on every batch (fine for a few hundred photos);
+    # add a photo.sha256 column if the gallery grows into thousands.
+    return {photo_batch.sha256_file(p) for p in UPLOAD_DIR.iterdir()
+            if p.is_file() and p.suffix.lower().lstrip(".") in ALLOWED_IMG}
+
+
+def _image_format(data: bytes) -> str | None:
+    from PIL import Image, UnidentifiedImageError
+    try:
+        with Image.open(BytesIO(data)) as img:
+            img.verify()
+            return (img.format or "").upper()
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError):
+        return None
+
+
+def _load_batch(token):
+    d = photo_batch.staging_dir(BATCH_STAGING_DIR, token)
+    if d is None or not (d / "manifest.json").is_file():
+        abort(404)
+    manifest = _json.loads((d / "manifest.json").read_text("utf-8"))
+    if manifest.get("owner") != current_user.id:
+        abort(404)
+    return d, manifest
+
+
+@app.route("/admin/photo/batch", methods=["POST"])
+@login_required
+def admin_photo_batch_upload():
+    # Per-request limits must be set before request.files is first touched.
+    request.max_content_length = MAX_BATCH_BYTES
+    request.max_form_parts = MAX_BATCH_FILES * 4 + 50
+    files = [f for f in request.files.getlist("files") if f and f.filename]
+    if not files:
+        flash("Pilih folder atau berkas ZIP berisi foto kegiatan.", "error")
+        return redirect(url_for("admin") + "#tab-photo")
+
+    photo_batch.purge_stale(BATCH_STAGING_DIR)
+    token = secrets.token_hex(8)
+    stage = BATCH_STAGING_DIR / token
+    stage.mkdir(parents=True)
+
+    stats = {"skipped": 0}
+    existing = _existing_photo_hashes()
+    seen, items, overflow = {}, [], False
+    today = today_wib()
+    with get_conn() as conn:
+        cand_cache = {}
+        for name, data, error in photo_batch.iter_sources(files, ALLOWED_IMG, MAX_IMAGE_BYTES, stats):
+            if len(items) >= MAX_BATCH_FILES:
+                overflow = True  # stop reading; the rest goes in the next batch
+                break
+            idx = len(items)
+            it = {"idx": idx, "name": name, "file": "", "date": "", "time": "",
+                  "candidates": [], "lab_id": None, "status": "", "error": error or ""}
+            items.append(it)
+            if error:
+                continue
+            if not data:
+                it["error"] = "Berkas foto kosong."
+                continue
+            if _image_format(data) not in ALLOWED_PIL_FORMATS:
+                it["error"] = "Bukan foto PNG/JPEG/WebP yang valid."
+                continue
+            digest = photo_batch.sha256_bytes(data)
+            if digest in existing:
+                it["error"] = "Sudah ada di galeri (foto identik)."
+                continue
+            if digest in seen:
+                it["error"] = f"Duplikat dari {seen[digest]} dalam batch ini."
+                continue
+            seen[digest] = name
+            it["file"] = f"{idx}.{photo_batch.ext_of(name)}"
+            (stage / it["file"]).write_bytes(data)
+            it["sha256"] = digest
+
+            d, hhmm = photo_batch.parse_wa_datetime(name)
+            if d is None:
+                it["status"] = "no_date"
+                continue
+            if d > today:
+                it["error"] = f"Tanggal dari nama berkas ({d.isoformat()}) di masa depan."
+                continue
+            it["date"], it["time"] = d.isoformat(), hhmm
+            if d not in cand_cache:
+                cand_cache[d] = _labs_active_on(conn, d)
+            it["candidates"] = cand_cache[d]
+            if len(it["candidates"]) == 1:
+                it["status"], it["lab_id"] = "auto", it["candidates"][0]["id"]
+                it["caption"] = it["candidates"][0]["caption"]
+            elif it["candidates"]:
+                it["status"] = "ambiguous"   # -> Umum unless the admin picks one
+            else:
+                it["status"] = "no_activity"  # -> Umum
+
+    items.sort(key=lambda x: (bool(x["error"]), x["date"] or "9999", x["time"], x["name"]))
+    manifest = {"owner": current_user.id, "items": items,
+                "skipped": stats["skipped"], "overflow": overflow}
+    (stage / "manifest.json").write_text(_json.dumps(manifest, ensure_ascii=False), "utf-8")
+    return redirect(url_for("admin_photo_batch_review", token=token))
+
+
+@app.route("/admin/photo/batch/<token>")
+@login_required
+def admin_photo_batch_review(token):
+    _stage, manifest = _load_batch(token)
+    items = manifest["items"]
+    counts = {k: sum(1 for i in items if not i["error"] and i["status"] == k)
+              for k in ("auto", "ambiguous", "no_activity", "no_date")}
+    counts["error"] = sum(1 for i in items if i["error"])
+    return render_template(
+        "photo_batch.html", token=token, items=items, counts=counts,
+        skipped=manifest["skipped"], overflow=manifest["overflow"],
+        max_files=MAX_BATCH_FILES, today_iso=today_wib().isoformat(),
+    )
+
+
+@app.route("/admin/photo/batch/<token>/img/<int:idx>")
+@login_required
+def admin_photo_batch_img(token, idx):
+    stage, manifest = _load_batch(token)
+    item = next((i for i in manifest["items"] if i["idx"] == idx and i["file"]), None)
+    if not item:
+        abort(404)
+    return send_from_directory(stage, item["file"])
+
+
+@app.route("/admin/photo/batch/<token>/cancel", methods=["POST"])
+@login_required
+def admin_photo_batch_cancel(token):
+    stage, _manifest = _load_batch(token)
+    shutil.rmtree(stage, ignore_errors=True)
+    flash("Batch foto dibatalkan. Tidak ada foto yang disimpan.", "success")
+    return redirect(url_for("admin") + "#tab-photo")
+
+
+@app.route("/admin/photo/batch/<token>/commit", methods=["POST"])
+@login_required
+def admin_photo_batch_commit(token):
+    request.max_form_parts = MAX_BATCH_FILES * 4 + 50  # include/date/lab/caption per photo
+    stage, manifest = _load_batch(token)
+    today = today_wib()
+    existing = _existing_photo_hashes()
+    to_insert, problems = [], []
+
+    with get_conn() as conn:
+        valid_labs = {r["id"] for r in conn.execute("SELECT id FROM lab")}
+        for it in manifest["items"]:
+            idx = it["idx"]
+            if it["error"] or not it["file"] or request.form.get(f"include_{idx}") != "1":
+                continue
+            try:
+                d = datetime.strptime((request.form.get(f"date_{idx}") or "").strip(), "%Y-%m-%d").date()
+            except ValueError:
+                problems.append(f"{it['name']}: tanggal belum diisi")
+                continue
+            if d > today:
+                problems.append(f"{it['name']}: tanggal di masa depan")
+                continue
+            lab_raw = (request.form.get(f"lab_{idx}") or "").strip()
+            lab_id = int(lab_raw) if lab_raw.isdigit() and int(lab_raw) in valid_labs else None
+            # Same activity guard as the single upload: lab-specific needs activity that day.
+            if lab_id is not None and lab_id not in {c["id"] for c in _labs_active_on(conn, d)}:
+                problems.append(f"{it['name']}: lab tidak memiliki aktivitas pada {d.isoformat()}")
+                continue
+            if it.get("sha256") in existing:
+                problems.append(f"{it['name']}: sudah ada di galeri")
+                continue
+            caption = (request.form.get(f"caption_{idx}") or "").strip()[:200]
+            to_insert.append((it, d.isoformat(), lab_id, caption))
+
+    if problems:
+        # Nothing saved: keep the batch so the admin can fix the listed rows.
+        flash("Batch belum disimpan. Perbaiki baris berikut lalu simpan lagi: "
+              + "; ".join(problems[:10]) + (" …" if len(problems) > 10 else ""), "error")
+        return redirect(url_for("admin_photo_batch_review", token=token))
+    if not to_insert:
+        flash("Tidak ada foto yang dipilih untuk disimpan.", "error")
+        return redirect(url_for("admin_photo_batch_review", token=token))
+
+    backup_mod.create_backup("pre_photo_batch")
+    copied = []
+    try:
+        rows = []
+        for it, ev_date, lab_id, caption in to_insert:
+            ext = photo_batch.ext_of(it["file"])
+            safe = secure_filename(it["name"].rsplit(".", 1)[0])[:40] or "photo"
+            new_name = f"{ev_date}_{safe}_{secrets.token_hex(4)}.{ext}"
+            shutil.copy2(stage / it["file"], UPLOAD_DIR / new_name)
+            copied.append(UPLOAD_DIR / new_name)
+            rows.append((new_name, ev_date, lab_id, caption))
+        with get_conn() as conn:
+            conn.executemany(
+                "INSERT INTO photo (filename, event_date, lab_id, caption) VALUES (?,?,?,?)", rows)
+            conn.commit()
+    except Exception:
+        for p in copied:  # all-or-nothing: no orphan files without DB rows
+            p.unlink(missing_ok=True)
+        app.logger.exception("photo batch commit failed")
+        flash("Gagal menyimpan batch foto. Tidak ada perubahan yang disimpan.", "error")
+        return redirect(url_for("admin_photo_batch_review", token=token))
+
+    shutil.rmtree(stage, ignore_errors=True)
+    n_lab = sum(1 for r in rows if r[2] is not None)
+    flash(f"{len(rows)} foto disimpan ({n_lab} per laboratorium, {len(rows) - n_lab} Umum).", "success")
+    return redirect(url_for("gallery"))
+
+
 @app.route("/admin/photo/<int:pid>/edit", methods=["POST"])
 @login_required
 def admin_edit_photo(pid):
@@ -1197,6 +1445,47 @@ def export_excel():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         as_attachment=True, download_name=fname,
     )
+
+
+# ---------------- PDF report ----------------
+
+def _pdf_response(data, fname):
+    return send_file(BytesIO(data), mimetype="application/pdf", as_attachment=True, download_name=fname)
+
+
+@app.route("/export/pdf")
+def export_pdf_month():
+    try:
+        year = int(request.args["year"])
+        month = int(request.args["month"])
+        assert 2000 <= year <= 2100 and 1 <= month <= 12
+    except (KeyError, ValueError, AssertionError):
+        abort(400)
+    summary, days, day_meta, _photos, details_map = period_summary(year, month)
+    summary = _filter_retired(summary, year, month)
+    py, pm = (year, month - 1) if month > 1 else (year - 1, 12)
+    with get_conn() as conn:
+        photo_count = conn.execute("SELECT COUNT(*) FROM photo WHERE event_date LIKE ?",
+                                   (f"{year}-{month:02d}-%",)).fetchone()[0]
+        prev_drs = conn.execute("SELECT COALESCE(SUM(drs), 0) FROM entry WHERE year=? AND month=?",
+                                (py, pm)).fetchone()[0]
+    data = report_pdf.monthly(year, month, summary, days, day_meta, details_map, photo_count, prev_drs,
+                              retired_in_period(year, month), LOGO_PATH, today_wib())
+    return _pdf_response(data, f"Laporan_Utilisasi_{MONTHS_ID[month]}_{year}.pdf")
+
+
+@app.route("/export/pdf/year")
+def export_pdf_year():
+    try:
+        year = int(request.args["year"])
+        assert 2000 <= year <= 2100
+    except (KeyError, ValueError, AssertionError):
+        abort(400)
+    summary = _filter_retired_year(year_summary(year), year)
+    retired = [{"code": c, "from_month": RETIRED_LABS[c][1], "from_year": RETIRED_LABS[c][0]}
+               for c, _n in retired_in_period(year, 12) if RETIRED_LABS[c][0] == year]
+    data = report_pdf.annual(year, summary, retired, LOGO_PATH, today_wib())
+    return _pdf_response(data, f"Laporan_Utilisasi_Tahun_{year}.pdf")
 
 
 # ---------------- entrypoint ----------------

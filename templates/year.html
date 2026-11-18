@@ -10,6 +10,7 @@
         {% for y in years %}<option value="{{ y }}" {% if y==year %}selected{% endif %}>{{ y }}</option>{% endfor %}
       </select>
       <a class="btn btn-outline-secondary btn-sm" href="/{{ year }}-01.html">&laquo; Mode Bulanan</a>
+      <a class="btn btn-outline-danger btn-sm" href="/export/Laporan_Utilisasi_Tahun_{{ year }}.pdf">Unduh PDF Tahunan</a>
     </div>
   {% else %}
     <form class="d-flex gap-2 ms-auto" method="get">
@@ -22,6 +23,7 @@
       <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('index', year=year, month=1) }}">
         &laquo; Mode Bulanan
       </a>
+      <a class="btn btn-outline-danger btn-sm" href="{{ url_for('export_pdf_year', year=year) }}">Unduh PDF Tahunan</a>
     </form>
   {% endif %}
 </div>

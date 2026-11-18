@@ -225,6 +225,35 @@
   </form>
 </div></div>
 
+<div class="card mb-3"><div class="card-body">
+  <h6 class="card-title">Unggah Batch (Folder / ZIP)</h6>
+  <p class="small text-muted mb-2">
+    Pilih satu folder atau berkas <code>.zip</code> berisi foto WhatsApp
+    (mis. <code>WhatsApp Image 2026-06-08 at 14.05.02.jpeg</code> atau
+    <code>IMG-20260608-WA0012.jpg</code>). Tanggal dibaca dari nama berkas, lalu
+    dicocokkan dengan lab yang memiliki aktivitas pada tanggal tersebut.
+    Jika hanya satu lab aktif, foto otomatis ditautkan ke lab itu; jika lebih
+    dari satu atau tidak ada, foto masuk kategori <i>Umum</i> sampai Anda memilih lab.
+    Semua hasil ditinjau dulu sebelum disimpan. Maks {{ max_batch_files }} foto /
+    {{ max_batch_mb }} MB per unggahan, 2 MB per foto.
+  </p>
+  <form method="post" action="{{ url_for('admin_photo_batch_upload') }}"
+        enctype="multipart/form-data" class="row g-2 align-items-end" id="batchForm">
+    <div class="col-md-5">
+      <label class="form-label small" for="batchFolder">Folder foto</label>
+      <input class="form-control" type="file" name="files" id="batchFolder" webkitdirectory multiple>
+    </div>
+    <div class="col-md-5">
+      <label class="form-label small" for="batchZip">atau berkas ZIP / beberapa foto</label>
+      <input class="form-control" type="file" name="files" id="batchZip" multiple
+             accept=".zip,.png,.jpg,.jpeg,.webp,application/zip,image/png,image/jpeg,image/webp">
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-primary w-100" id="batchSubmit">Proses &amp; Tinjau</button>
+    </div>
+  </form>
+</div></div>
+
 <p><a class="btn btn-outline-secondary btn-sm" href="{{ url_for('gallery') }}">Lihat semua foto &raquo;</a></p>
 </div>
 

@@ -11,6 +11,7 @@ Output layout (under dist/):
     gallery.html               -> photo gallery
     api/period-YYYY-MM.json    -> per-period JSON (for cell hover preview)
     export/Rekap_Utilisasi_YYYY-MM.xlsx
+    export/Laporan_Utilisasi_YYYY-MM.pdf, export/Laporan_Utilisasi_Tahun_YYYY.pdf
     static/...                 -> copied from project static/
     uploads/photos/...         -> copied from data/uploads/photos/
     vercel.json                -> rewrites for clean URLs
@@ -226,6 +227,17 @@ def main() -> int:
         r = client.get(f"/export?year={y}&month={m}")
         if r.status_code == 200:
             save(f"export/Rekap_Utilisasi_{y}-{m:02d}.xlsx", r.data)
+
+    # PDF reports (monthly + annual)
+    log("  Menulis laporan PDF ...")
+    for y, m in periods:
+        r = client.get(f"/export/pdf?year={y}&month={m}")
+        if r.status_code == 200:
+            save(f"export/Laporan_Utilisasi_{y}-{m:02d}.pdf", r.data)
+    for y in years:
+        r = client.get(f"/export/pdf/year?year={y}")
+        if r.status_code == 200:
+            save(f"export/Laporan_Utilisasi_Tahun_{y}.pdf", r.data)
 
     # Vercel config
     save("vercel.json", VERCEL_JSON)
