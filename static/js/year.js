@@ -5,11 +5,12 @@
   const monthNums = Array.from({length: 12}, (_, i) => i + 1);
   const monthLabels = monthNums.map(m => monthsShort[m]);
 
-  const palette = [
-    '#0b3d91', '#1f77b4', '#2ca02c', '#ff7f0e', '#d62728',
-    '#9467bd', '#8c564b', '#e377c2', '#17becf', '#bcbd22',
-    '#7f7f7f', '#aec7e8', '#ffbb78',
-  ];
+  // Same per-lab colours as dashboard.js; retired labs get neutral greys.
+  const LAB_COLOR = {
+    1: '#0b3d91', 2: '#5b7fb5', 3: '#8a9bb0', 4: '#3f6e6a', 9: '#4a5a78',
+    10: '#9c8457', 12: '#6f8f86', 13: '#a7b4c6', 14: '#7d6f8f',
+  };
+  const labColor = l => LAB_COLOR[l.id] || '#c3c9d3';
 
   // Yearly totals bar
   new Chart(document.getElementById('yearByLab'), {
@@ -41,7 +42,7 @@
       labels: labs.map(l => l.code),
       datasets: [{
         data: jpData,
-        backgroundColor: labs.map((_, i) => palette[i % palette.length]),
+        backgroundColor: labs.map(labColor),
       }],
     },
     options: {
@@ -64,7 +65,7 @@
   const stackedDatasets = labs.map((l, i) => ({
     label: l.code,
     data: monthNums.map(m => l.months[m] ? l.months[m].drs : 0),
-    backgroundColor: palette[i % palette.length],
+    backgroundColor: labColor(l),
     stack: 'durasi',
   }));
   new Chart(document.getElementById('yearMonthly'), {
@@ -84,8 +85,8 @@
   const trendDatasets = labs.map((l, i) => ({
     label: l.code,
     data: monthNums.map(m => l.months[m] ? l.months[m].drs : 0),
-    borderColor: palette[i % palette.length],
-    backgroundColor: palette[i % palette.length] + '33',
+    borderColor: labColor(l),
+    backgroundColor: labColor(l) + '33',
     tension: 0.2,
     pointRadius: 3,
     fill: false,

@@ -14,8 +14,8 @@
           </option>
         {% endfor %}
       </select>
-      <a class="btn btn-warning btn-sm" href="/year-{{ year }}.html">Setahun Penuh &raquo;</a>
-      <a class="btn btn-outline-success btn-sm"
+      <a class="btn btn-outline-primary btn-sm" href="/year-{{ year }}.html">Rekap Setahun</a>
+      <a class="btn btn-outline-primary btn-sm"
          href="/export/Rekap_Utilisasi_{{ year }}-{{ '%02d' % month }}.xlsx">Unduh Excel</a>
     </div>
   {% else %}
@@ -27,8 +27,8 @@
       </select>
       <input class="form-control form-control-sm" type="number" name="year" value="{{ year }}" min="2020" max="2099" style="width:110px">
       <button class="btn btn-primary btn-sm">Lihat</button>
-      <a class="btn btn-warning btn-sm" href="{{ url_for('year_view', year=year) }}">Setahun Penuh &raquo;</a>
-      <a class="btn btn-outline-success btn-sm" href="{{ url_for('export_excel', year=year, month=month) }}">Unduh Excel</a>
+      <a class="btn btn-outline-primary btn-sm" href="{{ url_for('year_view', year=year) }}">Rekap Setahun</a>
+      <a class="btn btn-outline-primary btn-sm" href="{{ url_for('export_excel', year=year, month=month) }}">Unduh Excel</a>
     </form>
   {% endif %}
 </div>
@@ -41,7 +41,7 @@
   dan tidak ditampilkan pada rekap bulan ini:
   <ul class="mb-0 mt-1">
     {% for code, name in retired_labs %}
-      <li><b>{{ name }}</b> <span class="text-muted">({{ code }})</span></li>
+      <li><b>{{ name }}</b>{% if '(' ~ code ~ ')' not in name %} <span class="text-muted">({{ code }})</span>{% endif %}</li>
     {% endfor %}
   </ul>
 </div>
@@ -50,15 +50,15 @@
 <div class="row g-3 mb-3">
   <div class="col-md-3"><div class="card kpi"><div class="card-body">
     <div class="kpi-label">Total Frekuensi (JF)</div>
-    <div class="kpi-value" id="kpiFR">{{ '{:,}'.format(labs|sum(attribute='fr_total')) }}</div>
+    <div class="kpi-value" id="kpiFR">{{ labs|sum(attribute='fr_total')|idn }}</div>
   </div></div></div>
   <div class="col-md-3"><div class="card kpi"><div class="card-body">
     <div class="kpi-label">Total Pengguna (JP)</div>
-    <div class="kpi-value" id="kpiJP">{{ '{:,}'.format(labs|sum(attribute='jp_total')) }}</div>
+    <div class="kpi-value" id="kpiJP">{{ labs|sum(attribute='jp_total')|idn }}</div>
   </div></div></div>
   <div class="col-md-3"><div class="card kpi"><div class="card-body">
     <div class="kpi-label">Total Durasi (Jam)</div>
-    <div class="kpi-value" id="kpiDRS">{{ '%.1f' % (labs|sum(attribute='drs_total')) }}</div>
+    <div class="kpi-value" id="kpiDRS">{{ labs|sum(attribute='drs_total')|idn(1) }}</div>
   </div></div></div>
   <div class="col-md-3"><div class="card kpi"><div class="card-body">
     <div class="kpi-label">Lab Aktif</div>
@@ -68,33 +68,32 @@
   </div></div></div>
 </div>
 
-<div class="row g-3 mb-3">
-  <div class="col-lg-7">
-    <div class="card"><div class="card-body">
-      <h6 class="card-title">Durasi (Jam) per Laboratorium</h6>
-      <canvas id="chartByLab" height="160"></canvas>
-    </div></div>
-  </div>
-  <div class="col-lg-5">
-    <div class="card"><div class="card-body">
-      <h6 class="card-title">Distribusi Pengguna (JP)</h6>
-      <canvas id="chartShare" height="200"></canvas>
-    </div></div>
-  </div>
-</div>
-
 <div class="card mb-3"><div class="card-body">
   <h6 class="card-title">Durasi Harian (jam) &mdash; {{ month_name }} {{ year }}</h6>
   <p class="small text-muted mb-2">
-    Setiap batang menunjukkan total durasi pada hari tersebut, dipecah per laboratorium.
-    Klik nama lab di legenda untuk menyembunyikan / menampilkan kontribusinya.
+    Total durasi per hari, dipecah per laboratorium. Klik nama lab di legenda untuk menyembunyikannya.
   </p>
   <div class="chart-wrap chart-wrap-lg"><canvas id="chartDaily"></canvas></div>
 </div></div>
 
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-body">
+      <h6 class="card-title">Durasi per Laboratorium (jam)</h6>
+      <div class="chart-wrap chart-wrap-sm"><canvas id="chartByLab"></canvas></div>
+    </div></div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-body">
+      <h6 class="card-title">Pengguna per Laboratorium (JP)</h6>
+      <div class="chart-wrap chart-wrap-sm"><canvas id="chartShare"></canvas></div>
+    </div></div>
+  </div>
+</div>
+
 {% set holiday_count = day_meta.values()|selectattr('holiday')|list|length %}
 {% if holiday_count %}
-<div class="alert alert-warning py-2 small mb-2">
+<div class="alert alert-light border py-2 small mb-2">
   <b>{{ holiday_count }} hari libur nasional / cuti bersama</b> pada {{ month_name }} {{ year }}:
   {% for d, meta in day_meta.items() if meta.holiday %}
     <span class="badge bg-danger me-1" title="{{ meta.holiday }}">{{ d }} &mdash; {{ meta.holiday }}</span>
@@ -113,7 +112,7 @@
           <th rowspan="2">JF</th>
           <th rowspan="2">JP</th>
           <th rowspan="2">Durasi (Jam)</th>
-          <th colspan="{{ days }}" class="fw-bold">Tanggal Hari Kerja &mdash; {{ month_name }} {{ year }}</th>
+          <th colspan="{{ days }}" class="fw-bold">Tanggal &mdash; {{ month_name }} {{ year }}</th>
           <th rowspan="2">Keterangan</th>
         </tr>
         <tr class="text-center">
@@ -121,10 +120,9 @@
           {% for d in range(1, days+1) %}
             {% set m = day_meta[d] %}
             <th class="{% if m.holiday %}day-holiday{% elif m.is_weekend %}day-weekend{% endif %}"
-                title="{{ m.holiday if m.holiday else ('Akhir pekan' if m.is_weekend else '') }}"
-                style="line-height:1.1; padding:2px 3px;">
+                title="{{ m.holiday if m.holiday else ('Akhir pekan' if m.is_weekend else '') }}">
               <div>{{ d }}</div>
-              <div class="fw-normal {{ 'text-danger' if m.holiday or m.is_weekend else 'text-muted' }}" style="font-size:.65em">{{ DOW_ID[m.dow] }}</div>
+              <div class="dow">{{ DOW_ID[m.dow] }}</div>
             </th>
           {% endfor %}
         </tr>
@@ -139,9 +137,9 @@
               {{ lab.name }}
             </span>
           </td>
-          <td class="text-end fw-bold">{{ lab.fr_total }}</td>
-          <td class="text-end fw-bold">{{ lab.jp_total }}</td>
-          <td class="text-end fw-bold">{{ '%.1f' % lab.drs_total }}</td>
+          <td class="text-end num">{{ lab.fr_total|idn }}</td>
+          <td class="text-end num">{{ lab.jp_total|idn }}</td>
+          <td class="text-end num">{{ lab.drs_total|idn(1) }}</td>
           {% for d in range(1, days+1) %}
             {% set c = lab.days[d] %}
             {% set m = day_meta[d] %}
@@ -156,8 +154,6 @@
                 {% if c.drs or has_photos or has_detail %}role="button" tabindex="0"{% endif %}
                 title="FR {{ c.fr }} / JLH {{ c.jlh }} / DRS {{ c.drs }}{% if has_photos %} &mdash; {{ has_photos|length }} foto{% endif %}{% if has_detail %} &mdash; {{ has_detail|length }} detail{% endif %}">
               {{ '%.0f' % c.drs if c.drs else '' }}
-              {% if has_photos %}<span class="photo-dot" aria-hidden="true">&#128247;</span>{% endif %}
-              {% if has_detail %}<span class="detail-dot" aria-hidden="true">&#128221;</span>{% endif %}
             </td>
           {% endfor %}
           <td>{{ lab.keterangan }}</td>
@@ -167,10 +163,9 @@
     </table>
   </div>
   <p class="small text-muted mt-2 mb-0">
-    Hover sel berwarna untuk melihat detail FR / JLH / DRS dan foto kegiatan (jika ada).
-    JF = Jumlah Frekuensi, JP = Jumlah Pengguna.
+    Angka di sel = durasi (jam). Sudut biru tua = ada catatan kegiatan, sudut abu-abu = ada foto; klik sel untuk detail.
     <span class="text-danger fw-bold">Tanggal merah</span> = hari libur nasional / cuti bersama;
-    <span style="color:#1f5fbf" class="fw-bold">tanggal biru</span> = akhir pekan (Sabtu / Minggu).
+    <span class="day-weekend-text fw-bold">tanggal biru</span> = akhir pekan.
   </p>
 </div></div>
 
@@ -186,14 +181,13 @@
       <div class="col-sm-6 col-lg-3">
         <a href="https://diklatpelaut.stipjakarta.ac.id/peserta-login" target="_blank" rel="noopener"
            class="quick-link-card d-block text-decoration-none">
-          <div class="ql-accent" style="background:linear-gradient(135deg,#1565c0,#42a5f5)"></div>
-          <div class="ql-body p-2">
-            <div class="ql-icon" style="width:36px; height:36px;">
+          <div class="ql-body">
+            <div class="ql-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#fff" viewBox="0 0 16 16"><path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783"/></svg>
             </div>
             <div class="ql-text">
-              <span class="ql-title" style="font-size: .85rem;">Diklat Pelaut</span>
-              <span class="ql-sub" style="font-size: .7rem;">Login Peserta</span>
+              <span class="ql-title">Diklat Pelaut</span>
+              <span class="ql-sub">Login Peserta</span>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="ql-arrow me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>
           </div>
@@ -203,14 +197,13 @@
       <div class="col-sm-6 col-lg-3">
         <a href="https://bpsdm.kemenhub.go.id/" target="_blank" rel="noopener"
            class="quick-link-card d-block text-decoration-none">
-          <div class="ql-accent" style="background:linear-gradient(135deg,#2e7d32,#66bb6a)"></div>
-          <div class="ql-body p-2">
-            <div class="ql-icon" style="width:36px; height:36px;">
+          <div class="ql-body">
+            <div class="ql-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#fff" viewBox="0 0 16 16"><path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708z"/></svg>
             </div>
             <div class="ql-text">
-              <span class="ql-title" style="font-size: .85rem;">BPSDM Perhubungan</span>
-              <span class="ql-sub" style="font-size: .7rem;">Kementerian Perhubungan</span>
+              <span class="ql-title">BPSDM Perhubungan</span>
+              <span class="ql-sub">Kementerian Perhubungan</span>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="ql-arrow me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>
           </div>
@@ -220,14 +213,13 @@
       <div class="col-sm-6 col-lg-3">
         <a href="https://www.instagram.com/stip.indonesia/" target="_blank" rel="noopener"
            class="quick-link-card d-block text-decoration-none">
-          <div class="ql-accent" style="background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)"></div>
-          <div class="ql-body p-2">
-            <div class="ql-icon" style="width:36px; height:36px; background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)">
+          <div class="ql-body">
+            <div class="ql-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#fff" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12s.014 3.668.072 4.948c.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24s3.668-.014 4.948-.072c4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948s-.014-3.667-.072-4.947c-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
             </div>
             <div class="ql-text">
-              <span class="ql-title" style="font-size: .85rem;">@stip.indonesia</span>
-              <span class="ql-sub" style="font-size: .7rem;">Instagram STIP</span>
+              <span class="ql-title">@stip.indonesia</span>
+              <span class="ql-sub">Instagram STIP</span>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="ql-arrow me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>
           </div>
@@ -237,14 +229,13 @@
       <div class="col-sm-6 col-lg-3">
         <a href="https://www.instagram.com/bpsdmp151/" target="_blank" rel="noopener"
            class="quick-link-card d-block text-decoration-none">
-          <div class="ql-accent" style="background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)"></div>
-          <div class="ql-body p-2">
-            <div class="ql-icon" style="width:36px; height:36px; background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)">
+          <div class="ql-body">
+            <div class="ql-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#fff" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12s.014 3.668.072 4.948c.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24s3.668-.014 4.948-.072c4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948s-.014-3.667-.072-4.947c-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
             </div>
             <div class="ql-text">
-              <span class="ql-title" style="font-size: .85rem;">@bpsdmp151</span>
-              <span class="ql-sub" style="font-size: .7rem;">Instagram BPSDM</span>
+              <span class="ql-title">@bpsdmp151</span>
+              <span class="ql-sub">Instagram BPSDM</span>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="ql-arrow me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>
           </div>

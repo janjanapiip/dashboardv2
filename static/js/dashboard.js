@@ -2,6 +2,8 @@
   if (typeof SUMMARY === 'undefined') return;
   const labs = SUMMARY.labs;
   const days = SUMMARY.days;
+  const fmt = (v, dec = 0) => Number(v).toLocaleString('id-ID',
+    { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
   // ---- Hover photo preview ----
   const photos = (typeof PHOTOS_MAP === 'object' && PHOTOS_MAP) ? PHOTOS_MAP : {};
@@ -82,9 +84,9 @@
     document.getElementById('cellModalTitle').textContent = `${lab.name}`;
     document.getElementById('cellModalSub').textContent = `Tanggal ${date}`;
     document.getElementById('cellModalStats').innerHTML =
-      statCard('Frekuensi (FR)', cell.fr, 'sesi/kelas hari ini') +
-      statCard('Jumlah Pengguna (JLH)', cell.jlh, 'taruna/peserta') +
-      statCard('Durasi (DRS)', cell.drs + ' jam', 'penggunaan sarana');
+      statCard('Frekuensi (FR)', fmt(cell.fr), 'sesi/kelas hari ini') +
+      statCard('Jumlah Pengguna (JLH)', fmt(cell.jlh), 'taruna/peserta') +
+      statCard('Durasi (DRS)', fmt(cell.drs, 1) + ' jam', 'penggunaan sarana');
 
     const ket = document.getElementById('cellModalKeterangan');
     if (lab.keterangan) {
@@ -208,70 +210,56 @@
       if (/^\d{4}-\d{2}$/.test(v)) location.href = `/${v}.html`;
     });
   }
-  const palette = [
-    '#0b3d91', '#1f77b4', '#2ca02c', '#ff7f0e', '#d62728',
-    '#9467bd', '#8c564b', '#e377c2', '#17becf', '#bcbd22',
-    '#7f7f7f', '#aec7e8', '#ffbb78',
-  ];
+  // One muted colour per lab id, same in every chart. No red (red = libur).
+  const LAB_COLOR = {
+    1: '#0b3d91', 2: '#5b7fb5', 3: '#8a9bb0', 4: '#3f6e6a', 9: '#4a5a78',
+    10: '#9c8457', 12: '#6f8f86', 13: '#a7b4c6', 14: '#7d6f8f',
+  };
+  const labColor = l => LAB_COLOR[l.id] || '#9aa5b4';
+  Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
+  Chart.defaults.color = '#5b6474';
 
-  // Durasi per lab (bar)
-  new Chart(document.getElementById('chartByLab'), {
-    type: 'bar',
-    data: {
-      labels: labs.map(l => l.code),
-      datasets: [{
-        label: 'Durasi (jam)',
-        data: labs.map(l => Number(l.drs_total.toFixed(1))),
-        backgroundColor: '#0b3d91',
-        borderRadius: 4,
-      }],
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: {
-          title: items => labs[items[0].dataIndex].name,
-        }},
+  // Ranked horizontal bars; labs with zero value are dropped.
+  function rankedBar(id, key, unit, dec) {
+    const rows = labs.filter(l => l[key] > 0).sort((a, b) => b[key] - a[key]);
+    const total = rows.reduce((s, l) => s + l[key], 0) || 1;
+    new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: {
+        labels: rows.map(l => l.code),
+        datasets: [{ data: rows.map(l => l[key]), backgroundColor: rows.map(labColor), borderRadius: 2 }],
       },
-      scales: { y: { beginAtZero: true } },
-    },
-  });
-
-  // Pie distribusi pengguna
-  const jpData = labs.map(l => l.jp_total);
-  new Chart(document.getElementById('chartShare'), {
-    type: 'doughnut',
-    data: {
-      labels: labs.map(l => l.code),
-      datasets: [{
-        data: jpData,
-        backgroundColor: labs.map((_, i) => palette[i % palette.length]),
-      }],
-    },
-    options: {
-      plugins: {
-        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } },
-        tooltip: { callbacks: { label: ctx => {
-          const total = jpData.reduce((a,b)=>a+b,0) || 1;
-          const pct = (ctx.parsed / total * 100).toFixed(1);
-          return `${ctx.label}: ${ctx.parsed} (${pct}%)`;
-        }}},
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: {
+            title: items => rows[items[0].dataIndex].name,
+            label: ctx => `${fmt(ctx.parsed.x, dec)} ${unit} (${fmt(ctx.parsed.x / total * 100, 1)}%)`,
+          }},
+        },
+        scales: {
+          x: { beginAtZero: true, ticks: { callback: v => fmt(v) } },
+          y: { grid: { display: false } },
+        },
       },
-    },
-  });
+    });
+  }
+  rankedBar('chartByLab', 'drs_total', 'jam', 1);
+  rankedBar('chartShare', 'jp_total', 'orang', 0);
 
   // Durasi harian — stacked bars (lebih jelas daripada stacked area karena
   // tiap lab punya segment tegas, tidak tertimpa warna lab lain).
   const daily = Array.from({length: days}, (_, i) => i + 1);
-  const dailyDatasets = labs.map((l, i) => ({
+  const dailyDatasets = labs.filter(l => l.drs_total > 0).map(l => ({
     label: l.code,
     data: daily.map(d => l.days[d] ? l.days[d].drs : 0),
-    backgroundColor: palette[i % palette.length],
-    borderColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: labColor(l),
+    borderColor: '#ffffff',
     borderWidth: 0.5,
     stack: 'durasi',
-    hidden: l.drs_total === 0,  // lab tanpa aktivitas disembunyikan
   }));
   new Chart(document.getElementById('chartDaily'), {
     type: 'bar',
@@ -288,10 +276,10 @@
         tooltip: {
           callbacks: {
             title: items => `Tanggal ${items[0].label}`,
-            label:  ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} jam`,
+            label:  ctx => `${ctx.dataset.label}: ${fmt(ctx.parsed.y, 1)} jam`,
             footer: items => {
               const total = items.reduce((sum, it) => sum + it.parsed.y, 0);
-              return `Total hari: ${total.toFixed(1)} jam`;
+              return `Total hari: ${fmt(total, 1)} jam`;
             },
           },
         },

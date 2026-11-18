@@ -68,6 +68,12 @@ app.config["SECRET_KEY"] = os.environ.get("SPP_SECRET", secrets.token_hex(16))
 # Outer envelope: leaves room for Excel + form fields; image-specific cap enforced below.
 app.config["MAX_CONTENT_LENGTH"] = MAX_XLSX_BYTES + 1024 * 1024
 
+
+@app.template_filter("idn")
+def idn(v, dec=0):
+    """Indonesian number format: 2286 -> '2.286', 198.0 (dec=1) -> '198,0'."""
+    return f"{v:,.{dec}f}".translate(str.maketrans(",.", ".,"))
+
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
